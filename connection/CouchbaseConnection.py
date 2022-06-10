@@ -37,11 +37,3 @@ class CouchbaseConnection:
             print("Query failed: ", e)
 
         return response
-
-# username: root or cb-bd-nosql & password: admin123
-#cluster = Cluster('couchbase://localhost', ClusterOptions(PasswordAuthenticator('root', 'admin123')))
-#bucket = cluster.bucket('novosofa')
-
-#query_result = cluster.query('SELECT * FROM default:`novosofa`.project.usuario')
-#for row in query_result:
-#    print(row)

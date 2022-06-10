@@ -1,10 +1,9 @@
-from datetime import timedelta
-from fastapi import FastAPI, Response, status
+from fastapi import Depends, FastAPI, Response, status
 from typing import List
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Usuario import Usuario, UsuarioLogin
-from models.Token import Token
+from models.Token import Token, ValidateToken
 #from models.Materia import Materia
 import uuid
 
@@ -107,9 +106,20 @@ def create_new_user(user: Usuario, response: Response):
  
     return body
 
-@app.get("/Usuarios", response_model=List[Usuario])
-def get_all_users():
+@app.get("/Usuarios", response_model=List[Usuario], status_code=200)
+def get_all_users(token: str, response: Response):
     body = []
+
+    if token == '':
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        print('Token is Invalid')
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        print('Token is Invalid')
+        return body
+
     query_result = couchConn.query('''SELECT * FROM `novosofa`.project.usuario''')
     for row in query_result:
         user = Usuario(
@@ -124,9 +134,21 @@ def get_all_users():
     return body
 
 @app.get("/Usuario", response_model=List[Usuario])
-def get_user():
+def get_user(login: str, token: str, response: Response):
     body = []
-    query_result = couchConn.query('''SELECT * FROM `novosofa`.project.usuario''')
+
+    if token == '':
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        print('Token is Invalid')
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        print('Token is Invalid')
+        return body
+
+    query = '''SELECT * FROM `novosofa`.project.usuario WHERE login_usuario = "%s"''' %(login)
+    query_result = couchConn.query(query)
     for row in query_result:
         user = Usuario(
             cpf=row['usuario']['cpf'],
