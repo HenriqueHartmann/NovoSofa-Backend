@@ -1,50 +1,68 @@
-from fastapi import Depends, FastAPI, Response, status
+import os
+from dotenv import load_dotenv
+from fastapi import FastAPI, Response, status
 from typing import List
+from pydantic import BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
-#from models.Materia import Materia
 import uuid
+
+load_dotenv()
+
+class Settings(BaseSettings):
+    couchUri: str
+    couchUser: str
+    couchPwd: str
+    neoUri:str
+    neoUser: str
+    neoPwd: str
+
+settings = Settings(
+    couchUri=os.getenv('COUCHURI'),
+    couchUser=os.getenv('COUCHUSER'),
+    couchPwd=os.getenv('COUCHPWD'),
+    neoUri=os.getenv('NEOURI'),
+    neoUser=os.getenv('NEOUSER'),
+    neoPwd=os.getenv('NEOPWD')
+)
 
 app = FastAPI()
 
-couchUri = "couchbase://localhost"
-couchUser = "root"
-couchPwd = "admin123"
-couchConn = CouchbaseConnection(uri=couchUri, user=couchUser, pwd=couchPwd)
+# Couchbase
+couchConn = CouchbaseConnection(uri=settings.couchUri, user=settings.couchUser, pwd=settings.couchPwd)
 
-neoUri = "bolt://localhost:7687"
-neoUser = "neo4j"
-neoPwd = "root"
-neoConn = Neo4jConnection(uri=neoUri, user=neoUser, pwd=neoPwd)
+# Neo4j
+neoConn = Neo4jConnection(uri=settings.neoUri, user=settings.neoUser, pwd=settings.neoPwd)
 
-@app.post("/Login", response_model=List[Token], status_code=200)
+@app.post("/Login", response_model=List[Token], status_code=200) # Atualizar token document ao invés de criar um novo. Possibilidade de criar histórico no neo4j.
 def login(data: UsuarioLogin, response: Response):
     body = []
 
-    query = '''SELECT a.login_usuario, a.senha_usuario  FROM `novosofa`.project.usuario a WHERE a.login_usuario = "%s"''' %(data.login_usuario)
+    query = '''SELECT a.login_usuario, a.senha_usuario 
+               FROM `novosofa`.project.usuario a 
+               WHERE a.login_usuario = "%s"
+            ''' %(data.login_usuario)
+
     query_result = couchConn.query(query)
-    for row in query_result:
+    for item in query_result:
         user = UsuarioLogin(
-            login_usuario=row['login_usuario'],
-            senha_usuario=row['senha_usuario']
+            login_usuario=item['login_usuario'],
+            senha_usuario=item['senha_usuario']
         )
+
         if user.check_password(data.senha_usuario):
             token = Token(usuario_ref=data.login_usuario)
             token.create_access_token({"login": data.login_usuario})
-            uuidOne = uuid.uuid1()
-            
-            query_token = '''INSERT INTO `novosofa`.project.token (KEY, VALUE) VALUES ("%s", {"usuario_ref": "%s", "token": "%s", "expire": "%s"}) RETURNING *''' %(uuidOne, token.usuario_ref, token.token, token.expire)
-            query_token_result = couchConn.query(query_token)
 
-            for row in query_token_result:
-                response = Token(
-                    usuario_ref=row['token']['usuario_ref'],
-                    token=row['token']['token'],
-                    expire=row['token']['expire'],
-                )
-                body.append(response)
+            if token.token_document_exist(data.login_usuario, couchConn):
+                response = token.update_document(couchConn)
+            else:
+                uuidOne = uuid.uuid1()
+                response = token.create_document(uuidOne, couchConn, neoConn)
+                
+            body.append(response)
 
             return body
 
@@ -73,7 +91,9 @@ def create_new_user(user: Usuario, response: Response):
     cpf = ''.join(map(str, cpf))
     user.format_cpf(cpf)
 
-    cpf_query = '''SELECT COUNT(a.cpf)  FROM `novosofa`.project.usuario a WHERE a.cpf = "%s"''' %(user.cpf)
+    cpf_query = '''SELECT COUNT(a.cpf) 
+                   FROM `novosofa`.project.usuario a 
+                   WHERE a.cpf = "%s"''' %(user.cpf)
     cpf_query_res = couchConn.query(cpf_query)
     for row in cpf_query_res: 
         if row['$1'] > 0:
@@ -81,7 +101,9 @@ def create_new_user(user: Usuario, response: Response):
             print("CPF (%s) already registered" %(user.cpf))
             return body
 
-    login_query = '''SELECT COUNT(a.login_usuario)  FROM `novosofa`.project.usuario a WHERE a.login_usuario = "%s"''' %(user.login_usuario)
+    login_query = '''SELECT COUNT(a.login_usuario) 
+                     FROM `novosofa`.project.usuario a 
+                     WHERE a.login_usuario = "%s"''' %(user.login_usuario)
     login_query_res = couchConn.query(login_query)
     for row in login_query_res:
         if row['$1'] > 0:
@@ -92,27 +114,30 @@ def create_new_user(user: Usuario, response: Response):
     user.encrypt()
     uuidOne = uuid.uuid1()
 
-    query = '''INSERT INTO `novosofa`.project.usuario (KEY, VALUE) VALUES ("%s", {"cpf": "%s", "login_usuario": "%s", "nome_usuario": "%s", "senha_usuario": "%s", "tipo_usuario": %d }) RETURNING *''' %(uuidOne, user.cpf, user.login_usuario, user.nome_usuario, user.senha_usuario, user.tipo_usuario)
-    query_result = couchConn.query(query)
-    for row in query_result:
+    coach_query = '''INSERT INTO `novosofa`.project.usuario (KEY, VALUE) 
+                     VALUES ("%s", {"cpf": "%s", "login_usuario": "%s", "nome_usuario": "%s", "senha_usuario": "%s", "tipo_usuario": %d }) 
+                     RETURNING *''' %(uuidOne, user.cpf, user.login_usuario, user.nome_usuario, user.senha_usuario, user.tipo_usuario)
+    coach_query_result = couchConn.query(coach_query)
+    for item in coach_query_result:
         response = Usuario(
-            cpf=row['usuario']['cpf'],
-            login_usuario=row['usuario']['login_usuario'],
-            nome_usuario=row['usuario']['nome_usuario'],
-            senha_usuario=row['usuario']['senha_usuario'],
-            tipo_usuario=row['usuario']['tipo_usuario']
+            cpf=item['usuario']['cpf'],
+            login_usuario=item['usuario']['login_usuario'],
+            nome_usuario=item['usuario']['nome_usuario'],
+            senha_usuario=item['usuario']['senha_usuario'],
+            tipo_usuario=item['usuario']['tipo_usuario']
         )
         body.append(response)
- 
+    
+    neo_query = '''CREATE (n:Usuario {id: "%s", login_usuario: "%s"}) RETURN n''' %(uuidOne, user.login_usuario)
+    neo_query_result = neoConn.query(neo_query)
+    for item in neo_query_result:
+        print(item)
+
     return body
 
 @app.get("/Usuarios", response_model=List[Usuario], status_code=200)
 def get_all_users(token: str, response: Response):
     body = []
-
-    if token == '':
-        response.status_code = status.HTTP_401_UNAUTHORIZED
-        print('Token is Invalid')
 
     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
     if (token_is_valid is False):
@@ -121,13 +146,13 @@ def get_all_users(token: str, response: Response):
         return body
 
     query_result = couchConn.query('''SELECT * FROM `novosofa`.project.usuario''')
-    for row in query_result:
+    for item in query_result:
         user = Usuario(
-            cpf=row['usuario']['cpf'],
-            login_usuario=row['usuario']['login_usuario'],
-            nome_usuario=row['usuario']['nome_usuario'],
-            senha_usuario=row['usuario']['senha_usuario'],
-            tipo_usuario=row['usuario']['tipo_usuario']
+            cpf=item['usuario']['cpf'],
+            login_usuario=item['usuario']['login_usuario'],
+            nome_usuario=item['usuario']['nome_usuario'],
+            senha_usuario=item['usuario']['senha_usuario'],
+            tipo_usuario=item['usuario']['tipo_usuario']
         )
         body.append(user)
     
@@ -137,10 +162,6 @@ def get_all_users(token: str, response: Response):
 def get_user(login: str, token: str, response: Response):
     body = []
 
-    if token == '':
-        response.status_code = status.HTTP_401_UNAUTHORIZED
-        print('Token is Invalid')
-
     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
     if (token_is_valid is False):
         response.status_code = status.HTTP_401_UNAUTHORIZED
@@ -149,31 +170,14 @@ def get_user(login: str, token: str, response: Response):
 
     query = '''SELECT * FROM `novosofa`.project.usuario WHERE login_usuario = "%s"''' %(login)
     query_result = couchConn.query(query)
-    for row in query_result:
+    for item in query_result:
         user = Usuario(
-            cpf=row['usuario']['cpf'],
-            login_usuario=row['usuario']['login_usuario'],
-            nome_usuario=row['usuario']['nome_usuario'],
-            senha_usuario=row['usuario']['senha_usuario'],
-            tipo_usuario=row['usuario']['tipo_usuario']
+            cpf=item['usuario']['cpf'],
+            login_usuario=item['usuario']['login_usuario'],
+            nome_usuario=item['usuario']['nome_usuario'],
+            senha_usuario=item['usuario']['senha_usuario'],
+            tipo_usuario=item['usuario']['tipo_usuario']
         )
         body.append(user)
     
     return body
-
-"""
-@app.get("/Materias", response_model=List[Materia])
-def read_subject():
-    materias = []
-    queryReturn = neoConn.query('''MATCH (n: Materia) return n''')
-    
-    for item in queryReturn:
-        materia = Materia(
-            id=item['n'].id,
-            ch_materia=item['n']['ch_materia'],
-            descricao_materia=item['n']['descricao_materia']
-        )
-        materias.append(materia)
-
-    return materias
-"""    
