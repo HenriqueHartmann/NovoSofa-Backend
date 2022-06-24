@@ -1,6 +1,8 @@
 import os
+import re
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, status
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from pydantic import BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
@@ -30,6 +32,16 @@ settings = Settings(
 
 app = FastAPI()
 
+origins = ["*"]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Couchbase
 couchConn = CouchbaseConnection(uri=settings.couchUri, user=settings.couchUser, pwd=settings.couchPwd)
 
@@ -54,7 +66,8 @@ def login(data: UsuarioLogin, response: Response):
 
         if user.check_password(data.senha_usuario):
             token = Token(usuario_ref=data.login_usuario)
-            token.create_access_token({"login": data.login_usuario})
+            idToken = uuid.uuid1()
+            token.create_access_token({"login": data.login_usuario, "id": str(idToken)})
 
             if token.token_document_exist(data.login_usuario, couchConn):
                 response = token.update_document(couchConn)
@@ -105,6 +118,7 @@ def create_new_user(user: Usuario, response: Response):
                      FROM `novosofa`.project.usuario a 
                      WHERE a.login_usuario = "%s"''' %(user.login_usuario)
     login_query_res = couchConn.query(login_query)
+
     for row in login_query_res:
         if row['$1'] > 0:
             response.status_code = status.HTTP_400_BAD_REQUEST

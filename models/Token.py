@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 import jwt
 from pydantic import BaseModel
-
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 
@@ -14,9 +13,9 @@ class Token(BaseModel):
     expire: datetime = ""
 
     def create_access_token(self, data): 
-        self.expire = datetime.utcnow() + timedelta(minutes=60)
-        access_token = jwt.encode(data, secret_key, algorithm)
-        self.token = access_token
+        expire = datetime.utcnow() + timedelta(minutes=60)
+        self.expire = expire.strftime("%Y-%m-%d %H:%M:%S.%f")
+        self.token = jwt.encode(data, secret_key, algorithm)
 
     def token_document_exist(self, data: str, connC: CouchbaseConnection):
         query = '''SELECT RAW COUNT(*) FROM `novosofa`.project.token WHERE usuario_ref = "%s"''' %(data)
@@ -33,11 +32,7 @@ class Token(BaseModel):
                          VALUES ("%s", {"usuario_ref": "%s", "token": "%s", "expire": "%s"})
                          RETURNING * 
                       ''' %(uuid, self.usuario_ref, self.token, self.expire)
-        query_result = connC.query(query_couch)
-
-        for item in query_result:
-            print('INSERT: ')
-            print(item)
+        connC.query(query_couch)
 
         query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(uuid)  
         connN.query(query_neo)
@@ -45,19 +40,11 @@ class Token(BaseModel):
         return self
 
     def update_document(self, connC: CouchbaseConnection):
-        print(self.token)
-        print(self.expire)
-        print(self.usuario_ref)
-        query = '''UPDATE `novosofa`.project.token t
-                   SET t.token = "%s", t.expire = "%s"
-                   WHERE t.usuario_ref = "%s 
-                   RETURNING t"
-                ''' %(self.token, self.expire, self.usuario_ref)
-        query_result = connC.query(query)
-
-        for item in query_result:
-            print('UPDATE: ')
-            print(item)
+        connC.replace(
+            'token', 
+            connC.getTokenId(self.usuario_ref), 
+            self.dict()
+        )
 
         return self
 
