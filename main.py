@@ -73,7 +73,19 @@ def login(data: UsuarioLogin, response: Response):
                 response = token.update_document(couchConn)
             else:
                 uuidOne = uuid.uuid1()
-                response = token.create_document(uuidOne, couchConn, neoConn)
+                query_token = '''INSERT INTO `novosofa`.project.token (KEY, VALUE) 
+                                 VALUES ("%s", {"usuario_ref": "%s", "token": "%s", "expire": "%s"})
+                                 RETURNING * 
+                              ''' %(uuidOne, token.usuario_ref, token.token, token.expire)
+                result = couchConn.query(query_token)
+
+                query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(uuid)  
+                neoConn.query(query_neo)
+
+                for item in result:
+                    response = item
+                
+                #response = token.create_document(uuidOne, couchConn, neoConn)
                 
             body.append(response)
 

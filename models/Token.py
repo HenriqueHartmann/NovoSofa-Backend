@@ -28,14 +28,16 @@ class Token(BaseModel):
         return False 
 
     def create_document(self, uuid: str, connC: CouchbaseConnection, connN: Neo4jConnection):
-        query_couch = '''INSERT INTO `novosofa`.project.token (KEY, VALUE) 
-                         VALUES ("%s", {"usuario_ref": "%s", "token": "%s", "expire": "%s"})
-                         RETURNING * 
-                      ''' %(uuid, self.usuario_ref, self.token, self.expire)
-        connC.query(query_couch)
+        # query_couch = '''INSERT INTO `novosofa`.project.token (KEY, VALUE) 
+        #                  VALUES ("%s", {"usuario_ref": "%s", "token": "%s", "expire": "%s"})
+        #                  RETURNING * 
+        #               ''' %(uuid, self.usuario_ref, self.token, self.expire)
+        # connC.query(query_couch)
 
-        query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(uuid)  
-        connN.query(query_neo)
+        # query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(uuid)  
+        # connN.query(query_neo)
+
+        connC.createToken(uuid, self)
 
         return self
 

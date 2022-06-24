@@ -50,6 +50,22 @@ class CouchbaseConnection:
 
         return doc_id
 
+    def createToken(self, id: str, data):
+        bucket = self.__cluster.bucket("novosofa")
+        coll = bucket.scope("project").collection('token')
+        try:
+            token_doc = {
+                "token": data.token,
+                "expire": data.expire,
+                "usuario_ref": data.usuario_ref
+            }
+            print(token_doc)
+            coll.insert(id, token_doc)
+            print('TOKEN CRIADO')
+        except Exception as e:
+            print('ERRO:')
+            print(e) 
+
     def replace(self, collection: str, id: str, data: dict):
         bucket = self.__cluster.bucket("novosofa")
         coll = bucket.scope("project").collection(collection)
