@@ -39,35 +39,117 @@ class CouchbaseConnection:
 
         return response
 
-    def insert(self, collection: str, key: str, doc: dict):
+    def get(self, collection: str, key):
+        response = []
         bucket = self.__cluster.bucket("novosofa")
         coll = bucket.scope("project").collection(collection)
         
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            coll.insert(key, doc)
+            response = coll.get(key)
         except Exception as e:
             print('ERRO:')
             print(e)
+
+        return response
+
+    def insert(self, collection: str, key: str, doc: dict):
+        response = ""
+        bucket = self.__cluster.bucket("novosofa")
+        coll = bucket.scope("project").collection(collection)
+        
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            response = coll.insert(key, doc)
+        except Exception as e:
+            print('ERRO:')
+            print(e)
+
+        return response
 
     def replace(self, collection: str, id: str, data: dict):
         bucket = self.__cluster.bucket("novosofa")
         coll = bucket.scope("project").collection(collection)
+        
         try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             coll.replace(id, data)
-            print('LOGIN EFETUADO')
         except Exception as e:
             print('ERRO:')
             print(e)
 
+    def getAllUsers(self):
+        response = []
+        query = '''SELECT * FROM `novosofa`.project.usuario'''
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = self.__cluster.query(query)
+
+            for row in result:
+                response.append(row['usuario'])
+        except ParsingFailedException as ex:
+            print(ex)
+
+        return response
+
+    def getUser(self, login: str):
+        response = ""
+        query = '''SELECT * 
+                    FROM `novosofa`.project.usuario
+                    WHERE login_usuario = $login'''
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = self.__cluster.query(query, QueryOptions(named_parameters={"login": login}))
+
+            for row in result:
+                response = row['usuario']
+        except ParsingFailedException as ex:
+            print(ex)
+
+        return response
+
+    def userExists(self, user: dict):
+        response = []
+        query = '''SELECT (
+                        SELECT RAW COUNT(email_usuario)
+                        FROM `novosofa`.project.usuario
+                        WHERE email_usuario = $email)[0]
+                        AS email,
+                    (
+                        SELECT RAW COUNT(login_usuario)
+                        FROM `novosofa`.project.usuario
+                        WHERE login_usuario = $login )[0] 
+                        AS login,
+                    (
+                        SELECT RAW COUNT(cpf)
+                        FROM `novosofa`.project.usuario
+                        WHERE cpf = $cpf)[0]
+                        AS cpf'''
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            response = self.__cluster.query(query, QueryOptions(named_parameters={"email": user['email_usuario'],"login": user['login_usuario'], "cpf": user['cpf']}))
+
+        except ParsingFailedException as ex:
+            print(ex)
+
+        return response
+
     def getTokenId(self, login: str):
-        response = ''
+        response = ""
         query = '''SELECT RAW META().id 
                     FROM `novosofa`.project.token 
                     WHERE `usuario_ref` = $login'''
         
         try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             result = self.__cluster.query(query, QueryOptions(named_parameters={"login": login}))
 
             for row in result:
@@ -76,9 +158,45 @@ class CouchbaseConnection:
             print(ex)
 
         return response
+    
+    def tokenExists(self, token):
+        response = False
+        query = '''SELECT (
+                    SELECT RAW COUNT(*)
+                    FROM `novosofa`.project.token t
+                    WHERE t.token = $token)[0] as count'''
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = self.__cluster.query(query, QueryOptions(named_parameters={"token": token}))
+            for row in result:
+                if row['count'] > 0:
+                    response = True
+        except ParsingFailedException as ex:
+            print(ex)
+
+        return response
+
+    def tokenExistsByLogin(self, login:str):
+        response = False
+        query = '''SELECT RAW COUNT(*) FROM `novosofa`.project.token WHERE usuario_ref = $login'''
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = self.__cluster.query(query, QueryOptions(named_parameters={"login": login}))
+
+            for row in result:
+                if row > 0:
+                    response = True
+        except ParsingFailedException as ex:
+            print(ex)
+
+        return response
 
     def getTokenExpireDatetime(self, login: str):
-        response = ''
+        response = ""
         query = '''SELECT expire, 
                    (SELECT RAW COUNT(*) 
                         FROM `novosofa`.project.token t 
@@ -87,6 +205,8 @@ class CouchbaseConnection:
                     WHERE usuario_ref = $login'''
         
         try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             result = self.__cluster.query(query, QueryOptions(named_parameters={"login": login}))
 
             for row in result:

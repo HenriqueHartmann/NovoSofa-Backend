@@ -17,15 +17,8 @@ class Token(BaseModel):
         self.expire = expire.strftime("%Y-%m-%d %H:%M:%S.%f")
         self.token = jwt.encode(data, secret_key, algorithm)
 
-    def token_document_exist(self, data: str, connC: CouchbaseConnection):
-        query = '''SELECT RAW COUNT(*) FROM `novosofa`.project.token WHERE usuario_ref = "%s"''' %(data)
-        query_result = connC.query(query)
-
-        for item in query_result:
-            if item > 0:
-                return True
-
-        return False 
+    def token_document_exists(self, login: str, connC: CouchbaseConnection):
+        return connC.tokenExistsByLogin(login) 
 
     def create_document(self, key: str, connC: CouchbaseConnection, connN: Neo4jConnection):
         connC.insert('token', key, self.dict())
@@ -38,24 +31,26 @@ class Token(BaseModel):
     def update_document(self, connC: CouchbaseConnection):
         key = connC.getTokenId(self.usuario_ref)
         connC.replace('token', key, self.dict())
-
+        print('LOGIN EFETUADO')
+        
         return self
 
 class ValidateToken(BaseModel):
     token: str = ""
 
     def validate_token(self, conn: CouchbaseConnection):
-        try:
-            login = jwt.decode(self.token, secret_key, algorithms=[algorithm])
-        except:
-            return False
+        if conn.tokenExists(self.token):
+            try:
+                login = jwt.decode(self.token, secret_key, algorithms=[algorithm])
+            except:
+                return False
 
-        result = conn.getTokenExpireDatetime(login)
+            result = conn.getTokenExpireDatetime(login['login'])
 
-        for item in result:
-            if item['count'] > 0:
+            if result['count'] > 0:
                 now = datetime.now()
-                expire = datetime.strptime(item['expire'], "%Y-%m-%d %H:%M:%S.%f")
+                expire = datetime.strptime(result['expire'], "%Y-%m-%d %H:%M:%S.%f")
                 if expire >= now:
                     return True
+
         return False
