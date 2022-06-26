@@ -10,6 +10,7 @@ class Usuario(BaseModel):
     cpf: str
     login_usuario: str
     nome_usuario: str
+    email_usuario: str
     senha_usuario: str
     tipo_usuario: TipoUsuario = TipoUsuario.aluno
 

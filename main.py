@@ -141,14 +141,15 @@ def create_new_user(user: Usuario, response: Response):
     uuidOne = uuid.uuid1()
 
     coach_query = '''INSERT INTO `novosofa`.project.usuario (KEY, VALUE) 
-                     VALUES ("%s", {"cpf": "%s", "login_usuario": "%s", "nome_usuario": "%s", "senha_usuario": "%s", "tipo_usuario": %d }) 
-                     RETURNING *''' %(uuidOne, user.cpf, user.login_usuario, user.nome_usuario, user.senha_usuario, user.tipo_usuario)
+                     VALUES ("%s", {"cpf": "%s", "login_usuario": "%s", "nome_usuario": "%s", "email_usuario": "%s", "senha_usuario": "%s", "tipo_usuario": %d }) 
+                     RETURNING *''' %(uuidOne, user.cpf, user.login_usuario, user.nome_usuario, user.email_usuario, user.senha_usuario, user.tipo_usuario)
     coach_query_result = couchConn.query(coach_query)
     for item in coach_query_result:
         response = Usuario(
             cpf=item['usuario']['cpf'],
             login_usuario=item['usuario']['login_usuario'],
             nome_usuario=item['usuario']['nome_usuario'],
+            email_usuario=item['usuario']['email_usuario'],
             senha_usuario=item['usuario']['senha_usuario'],
             tipo_usuario=item['usuario']['tipo_usuario']
         )
@@ -177,6 +178,7 @@ def get_all_users(token: str, response: Response):
             cpf=item['usuario']['cpf'],
             login_usuario=item['usuario']['login_usuario'],
             nome_usuario=item['usuario']['nome_usuario'],
+            email_usuario=item['usuario']['email_usuario'],
             senha_usuario=item['usuario']['senha_usuario'],
             tipo_usuario=item['usuario']['tipo_usuario']
         )
@@ -201,6 +203,7 @@ def get_user(login: str, token: str, response: Response):
             cpf=item['usuario']['cpf'],
             login_usuario=item['usuario']['login_usuario'],
             nome_usuario=item['usuario']['nome_usuario'],
+            email_usuario=item['usuario']['email_usuario'],
             senha_usuario=item['usuario']['senha_usuario'],
             tipo_usuario=item['usuario']['tipo_usuario']
         )
