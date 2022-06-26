@@ -1,6 +1,7 @@
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, QueryOptions
 from couchbase.auth import PasswordAuthenticator
+from couchbase.exceptions import ParsingFailedException
 import asyncio
 
 class CouchbaseConnection:
@@ -38,33 +39,17 @@ class CouchbaseConnection:
 
         return response
 
-    def getTokenId(self, login: str):
-        query = '''SELECT META().id 
-        FROM `novosofa`.project.token 
-        WHERE usuario_ref = "%s"''' %(login)
-
-        doc_id = ""
-        result = self.__cluster.query(query)
-        for item in result:
-            doc_id = item['id']
-
-        return doc_id
-
-    def createToken(self, id: str, data):
+    def insert(self, collection: str, key: str, doc: dict):
         bucket = self.__cluster.bucket("novosofa")
-        coll = bucket.scope("project").collection('token')
+        coll = bucket.scope("project").collection(collection)
+        
         try:
-            token_doc = {
-                "token": data.token,
-                "expire": data.expire,
-                "usuario_ref": data.usuario_ref
-            }
-            print(token_doc)
-            coll.insert(id, token_doc)
-            print('TOKEN CRIADO')
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            coll.insert(key, doc)
         except Exception as e:
             print('ERRO:')
-            print(e) 
+            print(e)
 
     def replace(self, collection: str, id: str, data: dict):
         bucket = self.__cluster.bucket("novosofa")
@@ -74,4 +59,39 @@ class CouchbaseConnection:
             print('LOGIN EFETUADO')
         except Exception as e:
             print('ERRO:')
-            print(e)    
+            print(e)
+
+    def getTokenId(self, login: str):
+        response = ''
+        query = '''SELECT RAW META().id 
+                    FROM `novosofa`.project.token 
+                    WHERE `usuario_ref` = $login'''
+        
+        try:
+            result = self.__cluster.query(query, QueryOptions(named_parameters={"login": login}))
+
+            for row in result:
+                response = row
+        except ParsingFailedException as ex:
+            print(ex)
+
+        return response
+
+    def getTokenExpireDatetime(self, login: str):
+        response = ''
+        query = '''SELECT expire, 
+                   (SELECT RAW COUNT(*) 
+                        FROM `novosofa`.project.token t 
+                        WHERE t.usuario_ref = $login)[0] as count 
+                    FROM `novosofa`.project.token 
+                    WHERE usuario_ref = $login'''
+        
+        try:
+            result = self.__cluster.query(query, QueryOptions(named_parameters={"login": login}))
+
+            for row in result:
+                response = row
+        except ParsingFailedException as ex:
+            print(ex)
+
+        return response

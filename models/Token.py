@@ -27,26 +27,17 @@ class Token(BaseModel):
 
         return False 
 
-    def create_document(self, uuid: str, connC: CouchbaseConnection, connN: Neo4jConnection):
-        # query_couch = '''INSERT INTO `novosofa`.project.token (KEY, VALUE) 
-        #                  VALUES ("%s", {"usuario_ref": "%s", "token": "%s", "expire": "%s"})
-        #                  RETURNING * 
-        #               ''' %(uuid, self.usuario_ref, self.token, self.expire)
-        # connC.query(query_couch)
+    def create_document(self, key: str, connC: CouchbaseConnection, connN: Neo4jConnection):
+        connC.insert('token', key, self.dict())
 
-        # query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(uuid)  
-        # connN.query(query_neo)
-
-        connC.createToken(uuid, self)
+        query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(key)  
+        connN.query(query_neo)
 
         return self
 
     def update_document(self, connC: CouchbaseConnection):
-        connC.replace(
-            'token', 
-            connC.getTokenId(self.usuario_ref), 
-            self.dict()
-        )
+        key = connC.getTokenId(self.usuario_ref)
+        connC.replace('token', key, self.dict())
 
         return self
 
@@ -59,19 +50,12 @@ class ValidateToken(BaseModel):
         except:
             return False
 
-        query = '''SELECT expire, 
-                   (SELECT RAW COUNT(*) 
-                        FROM `novosofa`.project.token t 
-                        WHERE t.usuario_ref = "%s")[0] as count 
-                    FROM `novosofa`.project.token 
-                    WHERE usuario_ref = "%s"''' %(login['login'], login['login'])
-        query_result = conn.query(query)
+        result = conn.getTokenExpireDatetime(login)
 
-        for item in query_result:
+        for item in result:
             if item['count'] > 0:
                 now = datetime.now()
                 expire = datetime.strptime(item['expire'], "%Y-%m-%d %H:%M:%S.%f")
-                print(expire >= now)
                 if expire >= now:
                     return True
         return False

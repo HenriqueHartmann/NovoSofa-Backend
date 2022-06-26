@@ -1,5 +1,4 @@
 import os
-import re
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,26 +65,13 @@ def login(data: UsuarioLogin, response: Response):
 
         if user.check_password(data.senha_usuario):
             token = Token(usuario_ref=data.login_usuario)
-            idToken = uuid.uuid1()
+            idToken = str(uuid.uuid1())
             token.create_access_token({"login": data.login_usuario, "id": str(idToken)})
 
             if token.token_document_exist(data.login_usuario, couchConn):
                 response = token.update_document(couchConn)
             else:
-                uuidOne = uuid.uuid1()
-                query_token = '''INSERT INTO `novosofa`.project.token (KEY, VALUE) 
-                                 VALUES ("%s", {"usuario_ref": "%s", "token": "%s", "expire": "%s"})
-                                 RETURNING * 
-                              ''' %(uuidOne, token.usuario_ref, token.token, token.expire)
-                result = couchConn.query(query_token)
-
-                query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(uuid)  
-                neoConn.query(query_neo)
-
-                for item in result:
-                    response = item
-                
-                #response = token.create_document(uuidOne, couchConn, neoConn)
+                response = token.create_document(idToken, couchConn, neoConn)
                 
             body.append(response)
 
