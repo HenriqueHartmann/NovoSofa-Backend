@@ -52,7 +52,6 @@ couchConn = CouchbaseConnection(uri=settings.couchUri, user=settings.couchUser, 
 neoConn = Neo4jConnection(uri=settings.neoUri, user=settings.neoUser, pwd=settings.neoPwd)
 
 # Endpoints
-
 @app.post("/Login", response_model=List[Token], status_code=200)
 def login(user: UsuarioLogin, response: Response):
     body = []
@@ -74,12 +73,13 @@ def login(user: UsuarioLogin, response: Response):
                 response = token.update_document(couchConn)
             else:
                 response = token.create_document(key, couchConn, neoConn)
-                
+            
             body.append(response)
-
+        else:
+            response.status_code = status.HTTP_403_FORBIDDEN
         return body
 
-    response.status_code = status.HTTP_404_NOT_FOUND
+    response.status_code = status.HTTP_403_FORBIDDEN
 
     return body
 
