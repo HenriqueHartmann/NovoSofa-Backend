@@ -6,8 +6,9 @@ from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 
 class TipoUsuario(int, Enum):
-    aluno = 0,
-    professor = 1
+    alunoMedio = 0,
+    alunoSuperior = 1
+    professor = 2
 
 class Usuario(BaseModel):
     cpf: str
@@ -15,7 +16,9 @@ class Usuario(BaseModel):
     nome_usuario: str
     email_usuario: str = ""
     senha_usuario: str
-    tipo_usuario: TipoUsuario = TipoUsuario.aluno
+    tipo_usuario: TipoUsuario = TipoUsuario.alunoMedio
+    curso_ref: str = ""
+    turma_ref: str = ""
 
     def encrypt(self):
         salt = bcrypt.gensalt()
@@ -63,8 +66,6 @@ class Usuario(BaseModel):
 
         query = '''CREATE (n:Usuario {id: "%s", login_usuario: "%s"}) RETURN n''' %(key, self.login_usuario)  
         connN.query(query)
-
-        return self
 
 class UsuarioLogin(BaseModel):
     login_usuario: str

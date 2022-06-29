@@ -1,3 +1,4 @@
+import json
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, status
@@ -7,6 +8,9 @@ from typing import List
 from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
+from models.Curso import Curso
+from models.Materia import Materia
+from models.Turma import Turma
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
 import uuid
@@ -115,6 +119,7 @@ def create_new_user(user: Usuario, response: Response):
 
     key = str(uuid.uuid1())
     user.create_document(key, couchConn, neoConn)
+    body.append(user)
 
     return body
 
@@ -166,6 +171,42 @@ def get_user(login: str, token: str, response: Response):
     body.append(user)
     
     return body
+
+@app.post("/PopularCursoTurmaMateria", responses={400: {"model": Message}}, status_code=201)
+def create_course(response: Response):
+    f = open('populate.json')
+    data = json.load(f)
+
+    for i in data:
+        if i == 'subjects':
+            for j in data['subjects']:
+                m = Materia(
+                  ch_materia=j['ch_materia'],
+                  descricao_materia=j['descricao_materia'],
+                  tipo_ensino=j['tipo_ensino'])
+
+                key = str(uuid.uuid1())
+                m.create_document(key, couchConn, neoConn)
+
+        if i == 'gang':
+            for j in data['gangs']:
+                t = Turma(
+                  descricao_turma=j['descricao_turma'],
+                  dt_inicio=j['dt_inicio'],
+                  dt_termino=j['dt_termino'])
+
+                key = str(uuid.uuid1())
+                t.create_document(key, couchConn, neoConn)
+
+        if i == 'courses':
+            for j in data['courses']:
+                c = Curso(
+                  nome_curso=j['nome_curso'],
+                  ch_curso=j['ch_curso'])
+                
+                key = str(uuid.uuid1())
+                c.create_document(key, couchConn, neoConn)
+    f.close()
 
 # Functions
 

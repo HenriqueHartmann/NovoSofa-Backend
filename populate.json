@@ -1,0 +1,70 @@
+{
+    "subjects": [
+        {
+            "ch_materia": 60,
+            "descricao_materia": "Programação I",
+            "tipo_ensino": 1
+        },
+        {
+            "ch_materia": 60,
+            "descricao_materia": "TCC I",
+            "tipo_ensino": 1
+        },
+        {
+            "ch_materia": 60,
+            "descricao_materia": "Redes I",
+            "tipo_ensino": 1
+        },
+        {
+            "ch_materia": 120,
+            "descricao_materia": "Programação",
+            "tipo_ensino": 0
+        },
+        {
+            "ch_materia": 120,
+            "descricao_materia": "Banco de Dados",
+            "tipo_ensino": 0
+        }
+    ],
+    "gangs": [
+        {
+            "descricao_turma": "BSI1",
+            "dt_inicio": "10/03/22",
+            "dt_fim": "18/07/2022"
+        },
+        {
+            "descricao_turma": "BSI2",
+            "dt_inicio": "03/08/22",
+            "dt_fim": "15/12/2022"
+        },
+        {
+            "descricao_turma": "BSI7",
+            "dt_inicio": "10/03/22",
+            "dt_fim": "18/07/2022"
+        },
+        {
+            "descricao_turma": "REDES1",
+            "dt_inicio": "10/03/22",
+            "dt_fim": "18/07/2022"
+        },
+        {
+            "descricao_turma": "1info1",
+            "dt_inicio": "16/02/22",
+            "dt_fim": "15/12/2022"
+        }
+    ],
+    "courses": [
+        {
+            "nome_curso": "Bacharelado em Sistemas de Informação",
+            "ch_curso": 2000
+        },
+        {
+            "nome_curso": "Redes",
+            "ch_curso": 2000
+        },
+        {
+            "nome_curso": "Técnico em Informática",
+            "ch_curso": 1500
+        }
+    ]
+}
