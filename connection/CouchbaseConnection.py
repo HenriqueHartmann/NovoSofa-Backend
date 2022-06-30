@@ -68,6 +68,21 @@ class CouchbaseConnection:
             print(e)
 
         return response
+    
+    def insert_multi(self, collection: str, keys: dict):
+        response = ""
+        bucket = self.__cluster.bucket("novosofa")
+        coll = bucket.scope("project").collection(collection)
+        
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            response = coll.insert_multi(keys)
+        except Exception as e:
+            print('ERRO:')
+            print(e)
+
+        return response
 
     def replace(self, collection: str, id: str, data: dict):
         bucket = self.__cluster.bucket("novosofa")
@@ -215,3 +230,9 @@ class CouchbaseConnection:
             print(ex)
 
         return response
+
+    def populateCourseGangSubject(self, data: dict):
+        # self.insert_multi('materia', data['subjects'])
+        # self.insert_multi('turma', data['gangs'])
+        self.insert_multi('curso', data['courses'])
+               

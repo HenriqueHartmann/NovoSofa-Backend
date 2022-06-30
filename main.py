@@ -172,40 +172,42 @@ def get_user(login: str, token: str, response: Response):
     
     return body
 
+@app.get("/GerarUUID")
+def get_uuid():
+    return str(uuid.uuid1())
+
 @app.post("/PopularCursoTurmaMateria", responses={400: {"model": Message}}, status_code=201)
-def create_course(response: Response):
+def populate(response: Response):
     f = open('populate.json')
     data = json.load(f)
+    
+    couchConn.populateCourseGangSubject(data)
+    # for i in data:
+    #     if i == 'subjects':
+    #         for j in data['subjects']:
+    #             m = Materia(
+    #               ch_materia=j['ch_materia'],
+    #               descricao_materia=j['descricao_materia'],
+    #               tipo_ensino=j['tipo_ensino'])
 
-    for i in data:
-        if i == 'subjects':
-            for j in data['subjects']:
-                m = Materia(
-                  ch_materia=j['ch_materia'],
-                  descricao_materia=j['descricao_materia'],
-                  tipo_ensino=j['tipo_ensino'])
+    #             m.create_document(j['key'], couchConn, neoConn)
 
-                key = str(uuid.uuid1())
-                m.create_document(key, couchConn, neoConn)
+    #     if i == 'gang':
+    #         for j in data['gangs']:
+    #             t = Turma(
+    #               descricao_turma=j['descricao_turma'],
+    #               dt_inicio=j['dt_inicio'],
+    #               dt_termino=j['dt_termino'])
 
-        if i == 'gang':
-            for j in data['gangs']:
-                t = Turma(
-                  descricao_turma=j['descricao_turma'],
-                  dt_inicio=j['dt_inicio'],
-                  dt_termino=j['dt_termino'])
+    #             t.create_document(j['key'], couchConn, neoConn)
 
-                key = str(uuid.uuid1())
-                t.create_document(key, couchConn, neoConn)
-
-        if i == 'courses':
-            for j in data['courses']:
-                c = Curso(
-                  nome_curso=j['nome_curso'],
-                  ch_curso=j['ch_curso'])
+    #     if i == 'courses':
+    #         for j in data['courses']:
+    #             c = Curso(
+    #               nome_curso=j['nome_curso'],
+    #               ch_curso=j['ch_curso'])
                 
-                key = str(uuid.uuid1())
-                c.create_document(key, couchConn, neoConn)
+    #             c.create_document(j['key'], couchConn, neoConn)
     f.close()
 
 # Functions
