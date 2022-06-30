@@ -22,9 +22,7 @@ class Token(BaseModel):
 
     def create_document(self, key: str, connC: CouchbaseConnection, connN: Neo4jConnection):
         connC.insert('token', key, self.dict())
-
-        query_neo = '''CREATE (n:Token {id: "%s"}) RETURN n''' %(key)  
-        connN.query(query_neo)
+        connN.createToken(key, self.usuario_ref)
 
         return self
 
@@ -38,14 +36,17 @@ class Token(BaseModel):
 class ValidateToken(BaseModel):
     token: str = ""
 
+    def decode_token(self):
+        try:
+            login = jwt.decode(self.token, secret_key, algorithms=[algorithm])
+        except:
+            return ""
+
+        return login['login']
+
     def validate_token(self, conn: CouchbaseConnection):
         if conn.tokenExists(self.token):
-            try:
-                login = jwt.decode(self.token, secret_key, algorithms=[algorithm])
-            except:
-                return False
-
-            result = conn.getTokenExpireDatetime(login['login'])
+            result = conn.getTokenExpireDatetime(self.decode_token())
 
             if result['count'] > 0:
                 now = datetime.now()

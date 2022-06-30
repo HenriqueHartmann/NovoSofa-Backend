@@ -33,6 +33,59 @@ class Neo4jConnection:
                 session.close()
         return response
 
+    def createToken(self, key: str, login: str, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+
+        query = '''MATCH (n:Usuario) WHERE n.login_usuario = "%s"
+                   CREATE (m:Token {id: "%s"}),
+                   (n)-[:ACESSO]->(m)''' %(login, key)
+
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
+    def getCourses(self, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+
+        query = '''MATCH (n:Curso) RETURN n'''
+
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
+    def getCourseSubjects(self, keyWord: str, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+
+        query = '''MATCH (n:Curso)-[r]->(m:Materia) WHERE n.palavra_chave = '%s' RETURN m''' %(keyWord)
+
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
     def populateCourseGangSubject(self, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None

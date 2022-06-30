@@ -17,8 +17,6 @@ class Usuario(BaseModel):
     email_usuario: str = ""
     senha_usuario: str
     tipo_usuario: TipoUsuario = TipoUsuario.alunoMedio
-    curso_ref: str = ""
-    turma_ref: str = ""
 
     def encrypt(self):
         salt = bcrypt.gensalt()

@@ -1,4 +1,6 @@
 import os
+from re import sub
+from unittest import result
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +14,7 @@ from models.Materia import Materia
 from models.Turma import Turma
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
+from models.Vinculo import VinculoRequest
 import uuid
 
 load_dotenv()
@@ -131,7 +134,7 @@ def get_all_users(token: str, response: Response):
         print('Token is Invalid')
         response.status_code = status.HTTP_401_UNAUTHORIZED
 
-        return JSONResponse(status_code=400, content=[{"message": "Token is invalid"}])
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
 
     result = couchConn.getAllUsers()
     for row in result:
@@ -147,7 +150,7 @@ def get_all_users(token: str, response: Response):
     
     return body
 
-@app.get("/Usuario", response_model=List[Usuario], response_model_exclude={"senha_usuario"})
+@app.get("/Usuario", response_model=List[Usuario], response_model_exclude={"senha_usuario"}, responses={401: {"model": Message}}, status_code=200)
 def get_user(login: str, token: str, response: Response):
     body = []
 
@@ -156,7 +159,7 @@ def get_user(login: str, token: str, response: Response):
         print('Token is Invalid')
         response.status_code = status.HTTP_401_UNAUTHORIZED
 
-        return JSONResponse(status_code=400, content=[{"message": "Token is invalid"}])
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
 
     result = couchConn.getUser(login)
     user = Usuario(
@@ -171,9 +174,70 @@ def get_user(login: str, token: str, response: Response):
     
     return body
 
-@app.get("/GerarUUID")
-def get_uuid():
-    return str(uuid.uuid1())
+@app.get("/Cursos", response_model=List[Curso], responses={401: {"model": Message}}, status_code=200)
+def get_courses(token: str, response: Response):
+    body = []
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+    courses = neoConn.getCourses()
+    for item in courses:
+        result = couchConn.get('curso', item['n']['key']).value
+        course = Curso(
+            ch_curso=result['ch_curso'],
+            nome_curso=result['nome_curso']
+        )
+        body.append(course)
+
+    return body
+
+# @app.get("/MedioMaterias")
+
+@app.get("/SuperiorMaterias", response_model=List[Materia], responses={401: {"model": Message}}, status_code=200)
+def get_graduation_subjects(course: str, token: str, response: Response):
+    body = []
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+    
+    subjects = neoConn.getCourseSubjects(course)
+    for item in subjects:
+        result = couchConn.get('materia', item['m']['key']).value
+        subject = Materia(
+            ch_materia=result['ch_materia'],
+            descricao_materia=result['descricao_materia'],
+            tipo_ensino=1
+        )
+        body.append(subject)
+
+    return body
+
+# @app.post("/Vincular", responses={401: {"model": Message}}, status_code=200)
+# def bind_course(vinculo: VinculoRequest, token: str, response: Response):
+#     body = []
+
+#     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+#     if (token_is_valid is False):
+#         print('Token is Invalid')
+#         response.status_code = status.HTTP_401_UNAUTHORIZED
+
+#         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+#     Vinculo
+
+
+# @app.get("/GerarUUID")
+# def get_uuid():
+#     return str(uuid.uuid1())
 
 @app.post("/PopularCursoTurmaMateria", responses={400: {"model": Message}}, status_code=201)
 def populate():
