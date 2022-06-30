@@ -1,4 +1,3 @@
-import json
 import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, status
@@ -177,38 +176,9 @@ def get_uuid():
     return str(uuid.uuid1())
 
 @app.post("/PopularCursoTurmaMateria", responses={400: {"model": Message}}, status_code=201)
-def populate(response: Response):
-    f = open('populate.json')
-    data = json.load(f)
-    
-    couchConn.populateCourseGangSubject(data)
-    # for i in data:
-    #     if i == 'subjects':
-    #         for j in data['subjects']:
-    #             m = Materia(
-    #               ch_materia=j['ch_materia'],
-    #               descricao_materia=j['descricao_materia'],
-    #               tipo_ensino=j['tipo_ensino'])
-
-    #             m.create_document(j['key'], couchConn, neoConn)
-
-    #     if i == 'gang':
-    #         for j in data['gangs']:
-    #             t = Turma(
-    #               descricao_turma=j['descricao_turma'],
-    #               dt_inicio=j['dt_inicio'],
-    #               dt_termino=j['dt_termino'])
-
-    #             t.create_document(j['key'], couchConn, neoConn)
-
-    #     if i == 'courses':
-    #         for j in data['courses']:
-    #             c = Curso(
-    #               nome_curso=j['nome_curso'],
-    #               ch_curso=j['ch_curso'])
-                
-    #             c.create_document(j['key'], couchConn, neoConn)
-    f.close()
+def populate():
+    couchConn.populateCourseGangSubject()
+    neoConn.populateCourseGangSubject()
 
 # Functions
 

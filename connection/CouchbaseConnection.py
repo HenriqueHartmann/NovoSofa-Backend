@@ -1,3 +1,4 @@
+import json
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, QueryOptions
 from couchbase.auth import PasswordAuthenticator
@@ -231,8 +232,13 @@ class CouchbaseConnection:
 
         return response
 
-    def populateCourseGangSubject(self, data: dict):
-        # self.insert_multi('materia', data['subjects'])
-        # self.insert_multi('turma', data['gangs'])
+    def populateCourseGangSubject(self):
+        f = open('populate.json')
+        data = json.load(f)
+
+        self.insert_multi('materia', data['subjects'])
+        self.insert_multi('turma', data['gangs'])
         self.insert_multi('curso', data['courses'])
+
+        f.close()
                
