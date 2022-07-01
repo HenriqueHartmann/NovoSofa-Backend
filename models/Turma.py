@@ -7,7 +7,7 @@ from connection.Neo4jConnection import Neo4jConnection
 class Turma(BaseModel):
     descricao_turma: str
     dt_inicio: str
-    dt_termino: str
+    dt_fim: str
 
     def create_document(self, key: str, connC: CouchbaseConnection, connN: Neo4jConnection):
         connC.insert('turma', key, self.dict())

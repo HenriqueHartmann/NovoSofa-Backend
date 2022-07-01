@@ -1,3 +1,5 @@
+from tkinter.ttk import Separator
+from typing import List
 from neo4j import GraphDatabase
 
 class Neo4jConnection:
@@ -75,6 +77,40 @@ class Neo4jConnection:
         response = None
 
         query = '''MATCH (n:Curso)-[r]->(m:Materia) WHERE n.palavra_chave = '%s' AND m.tipo = %d RETURN m''' %(keyWord, type)
+
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
+    def getSubjectsGangs(self, course:str, subjects: List[str], parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+
+        if len(subjects) == 1:
+            query = '''MATCH (c:Curso)-[r0]->(t:Turma), (m:Materia)-[r1]->(t) WHERE c.palavra_chave = "%s" AND m.key = "%s" RETURN t''' %(course, subjects[0])
+        else:
+            query = '''MATCH (c:Curso)-[r0]->(t:Turma), (m:Materia)-[r1]->(t) WHERE c.palavra_chave = "bsi" AND '''
+
+            conditions = '('
+            for i, m in enumerate(subjects):
+                separator = ' OR '
+
+                if i == 0:
+                    separator = ''
+                    conditions = separator.join([conditions, '''m.key = "%s"''' %(m)])
+                elif i == len(subjects) - 1:
+                    conditions = separator.join([conditions, '''m.key = "%s")''' %(m)])
+                else:
+                    conditions = separator.join([conditions, '''m.key = "%s"''' %(m)])
+
+            query = ''.join([query, conditions, ' RETURN t'])
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()

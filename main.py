@@ -1,9 +1,9 @@
+from typing import List, Optional
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, Response, status
+from fastapi import Depends, FastAPI, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from typing import List
 from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
@@ -48,6 +48,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def parse_list(names: List[str] = Query(None)) -> Optional[List]:
+    """
+    accepts strings formatted as lists with square brackets
+    names can be in the format
+    "[bob,jeff,greg]" or '["bob","jeff","greg"]'
+    """
+    def remove_prefix(text: str, prefix: str):
+        return text[text.startswith(prefix) and len(prefix):]
+
+    def remove_postfix(text: str, postfix: str):
+        if text.endswith(postfix):
+            text = text[:-len(postfix)]
+        return text
+
+    if names is None:
+        return
+
+    # we already have a list, we can return
+    if len(names) > 1:
+        return names
+
+    # if we don't start with a "[" and end with "]" it's just a normal entry
+    flat_names = names[0]
+    if not flat_names.startswith("[") and not flat_names.endswith("]"):
+        return names
+
+    flat_names = remove_prefix(flat_names, "[")
+    flat_names = remove_postfix(flat_names, "]")
+
+    names_list = flat_names.split(",")
+    names_list = [remove_prefix(n.strip(), "\"") for n in names_list]
+    names_list = [remove_postfix(n.strip(), "\"") for n in names_list]
+
+    return names_list
 
 # Couchbase
 couchConn = CouchbaseConnection(uri=settings.couchUri, user=settings.couchUser, pwd=settings.couchPwd)
@@ -242,6 +277,35 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
     return body
 
+@app.get("/TurmasPorMateria", response_model=List[Turma],responses={401: {"model": Message}}, status_code=200)
+def get_gang_subjects(course: str, token: str, response: Response, subjects: List[str] = Depends(parse_list)):
+    body = []
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+    if len(subjects) == 0:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+
+        return JSONResponse(status_code=400, content=[{"message": "Subject is empty"}])
+
+    gangs = neoConn.getSubjectsGangs(course, subjects)
+
+    for item in gangs:
+        result = couchConn.get('turma', item['t']['key']).value
+        gang = Turma(
+            descricao_turma=result['descricao_turma'],
+            dt_inicio=result['dt_inicio'],
+            dt_fim=result['dt_fim']
+        )
+        body.append(gang)
+
+    return body
+
 @app.post("/SuperiorVincular", responses={401: {"model": Message}}, status_code=201)
 def bind_course(vinculo: VinculoRequest, token: str, response: Response):
     body = []
@@ -271,4 +335,4 @@ def returnKey(row: dict, key: str):
     if key in row:
         return row[key]
     else:
-        return '' 
+        return ''
