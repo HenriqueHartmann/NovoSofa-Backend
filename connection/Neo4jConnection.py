@@ -69,12 +69,12 @@ class Neo4jConnection:
                 session.close()
         return response
 
-    def getCourseSubjects(self, keyWord: str, parameters=None, db=None):
+    def getCourseSubjects(self, keyWord: str, type: int, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
         response = None
 
-        query = '''MATCH (n:Curso)-[r]->(m:Materia) WHERE n.palavra_chave = '%s' RETURN m''' %(keyWord)
+        query = '''MATCH (n:Curso)-[r]->(m:Materia) WHERE n.palavra_chave = '%s' AND m.tipo = %d RETURN m''' %(keyWord, type)
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()
@@ -86,14 +86,59 @@ class Neo4jConnection:
                 session.close()
         return response
 
+    def bindGraduationStudent(self, login: str, data: dict, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+        
+        query = ''
+
+        for i, m in enumerate(data['materia']):
+            separator = ''
+            if i > 0:
+                separator = '\n'    
+            
+            query = separator.join([query, '''MATCH (m%d:Materia) WHERE m%d.key = "%s"''' %(i, i, m)])
+
+        for i, m in enumerate(data['materia']):
+            separator = '\n'
+            query = separator.join([query, '''MATCH (m%d:Turma)-[r%d]->(m%d)''' %(i, i, i)])
+        
+        for i, m in enumerate(data['materia']):
+            separator = '\n'
+            if (i == 0):
+                separator = ''
+                query = separator.join([query, '\n', 'CREATE', '''(u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m%d),''' %(i)])
+            else: 
+                query = separator.join([query, '''(u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m%d)''' %(i)])
+
+        print(query)
+        # query = '''MATCH (u1:Usuario) WHERE u1.login_usuario = "%s" 
+        #    MATCH (c1:Curso) WHERE c1.palavra_chave = "%s"
+        #    MATCH (m1:Materia) WHERE m1.key = "%s"
+        #    CREATE (u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m1)
+        #    RETURN u1, c1, m1''' %(login, data['course'], data['materia'][0])
+
+        # print(query)
+        # try:
+        #     session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+        #     response = list(session.run(query, parameters))
+        # except Exception as e:
+        #     print("Query failed: ", e)
+        # finally:
+        #     if session is not None:
+        #         session.close()
+        # return response
+        return []
+
     def populateCourseGangSubject(self, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
         response = None
 
-        query = '''CREATE (curso1:Curso {key:"623d9d86-f807-11ec-bb60-7c70db79db90", palavra_chave:"bsi"}),
-            (curso2:Curso {key:"6666f22f-f807-11ec-b6e4-7c70db79db90", palavra_chave:"redes"}),
-            (curso3:Curso {key:"6a984261-f807-11ec-b1f8-7c70db79db90", palavra_chave:"tecinfo"}),
+        query = '''CREATE (curso1:Curso {key:"623d9d86-f807-11ec-bb60-7c70db79db90", palavra_chave:"Bacharelado em Sistemas de Informação"}),
+            (curso2:Curso {key:"6666f22f-f807-11ec-b6e4-7c70db79db90", palavra_chave:"Redes"}),
+            (curso3:Curso {key:"6a984261-f807-11ec-b1f8-7c70db79db90", palavra_chave:"Técnico em Informática"}),
             (turma1:Turma {key:"2ac45349-f807-11ec-be5a-7c70db79db90"}),
             (turma2:Turma {key:"30192744-f807-11ec-b2c6-7c70db79db90"}),
             (turma3:Turma {key:"37353618-f807-11ec-a2fd-7c70db79db90"}),

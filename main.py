@@ -1,6 +1,4 @@
 import os
-from re import sub
-from unittest import result
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +8,7 @@ from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso
-from models.Materia import Materia
+from models.Materia import MateriaResponse
 from models.Turma import Turma
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
@@ -196,9 +194,7 @@ def get_courses(token: str, response: Response):
 
     return body
 
-# @app.get("/MedioMaterias")
-
-@app.get("/SuperiorMaterias", response_model=List[Materia], responses={401: {"model": Message}}, status_code=200)
+@app.get("/MedioMaterias", response_model=List[MateriaResponse], responses={401: {"model": Message}}, status_code=200)
 def get_graduation_subjects(course: str, token: str, response: Response):
     body = []
 
@@ -209,10 +205,11 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
     
-    subjects = neoConn.getCourseSubjects(course)
+    subjects = neoConn.getCourseSubjects(course, 0)
     for item in subjects:
         result = couchConn.get('materia', item['m']['key']).value
-        subject = Materia(
+        subject = MateriaResponse(
+            key=item['m']['key'],
             ch_materia=result['ch_materia'],
             descricao_materia=result['descricao_materia'],
             tipo_ensino=1
@@ -221,18 +218,42 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
     return body
 
-# @app.post("/Vincular", responses={401: {"model": Message}}, status_code=200)
-# def bind_course(vinculo: VinculoRequest, token: str, response: Response):
-#     body = []
+@app.get("/SuperiorMaterias", response_model=List[MateriaResponse], responses={401: {"model": Message}}, status_code=200)
+def get_graduation_subjects(course: str, token: str, response: Response):
+    body = []
 
-#     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
-#     if (token_is_valid is False):
-#         print('Token is Invalid')
-#         response.status_code = status.HTTP_401_UNAUTHORIZED
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
 
-#         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+    
+    subjects = neoConn.getCourseSubjects(course, 1)
+    for item in subjects:
+        result = couchConn.get('materia', item['m']['key']).value
+        subject = MateriaResponse(
+            key=item['m']['key'],
+            ch_materia=result['ch_materia'],
+            descricao_materia=result['descricao_materia'],
+            tipo_ensino=1
+        )
+        body.append(subject)
 
-#     Vinculo
+    return body
+
+@app.post("/SuperiorVincular", responses={401: {"model": Message}}, status_code=201)
+def bind_course(vinculo: VinculoRequest, token: str, response: Response):
+    body = []
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+    vinculo.bind_graduation(token, neoConn)
 
 
 # @app.get("/GerarUUID")

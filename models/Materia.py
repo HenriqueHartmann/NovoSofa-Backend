@@ -8,7 +8,7 @@ class TipoEnsino(int, Enum):
     medio = 0,
     superior = 1
 
-class Materia(BaseModel):
+class MateriaRequest(BaseModel):
     ch_materia: int
     descricao_materia: str
     tipo_ensino: TipoEnsino = TipoEnsino.medio
@@ -18,3 +18,9 @@ class Materia(BaseModel):
 
         query = '''CREATE (n:Materia {id: "%s", descricao_materia: "%s"}) RETURN n''' %(key, self.descricao_materia)  
         connN.query(query)
+
+class MateriaResponse(BaseModel):
+    key: str
+    ch_materia: int
+    descricao_materia: str
+    tipo_ensino: TipoEnsino = TipoEnsino.medio
