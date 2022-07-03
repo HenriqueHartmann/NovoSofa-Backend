@@ -287,8 +287,8 @@ def get_gang_subjects(course: str, token: str, response: Response, subjects: Lis
         response.status_code = status.HTTP_401_UNAUTHORIZED
 
         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
-
-    if len(subjects) == 0:
+    
+    if subjects is None:
         response.status_code = status.HTTP_400_BAD_REQUEST
 
         return JSONResponse(status_code=400, content=[{"message": "Subject is empty"}])
@@ -303,6 +303,11 @@ def get_gang_subjects(course: str, token: str, response: Response, subjects: Lis
             dt_fim=result['dt_fim']
         )
         body.append(gang)
+
+    if len(body) == 0:
+       response.status_code = status.HTTP_404_NOT_FOUND
+
+       return JSONResponse(status_code=404, content=[{"message": "Gang(s) not found"}])
 
     return body
 
@@ -319,6 +324,7 @@ def bind_course(vinculo: VinculoRequest, token: str, response: Response):
 
     vinculo.bind_graduation(token, neoConn)
 
+    return body
 
 # @app.get("/GerarUUID")
 # def get_uuid():

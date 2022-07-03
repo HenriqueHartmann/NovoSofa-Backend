@@ -1,3 +1,4 @@
+from fileinput import close
 from tkinter.ttk import Separator
 from typing import List
 from neo4j import GraphDatabase
@@ -122,40 +123,34 @@ class Neo4jConnection:
                 session.close()
         return response
 
-    def bindGraduationStudent(self, login: str, data: dict, parameters=None, db=None):
+    def bindGraduationStudent(self, course: str, login: str, data: dict, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
         response = None
         
-        query = ''
+        query = '''MATCH (c:Curso)-[r]->(m:Materia) WHERE c.palavra_chave = "%s" AND ''' %(course)
+        separator = ''
+
+        if len(data['materia']) == 1:
+            separator.join([])
 
         for i, m in enumerate(data['materia']):
-            separator = ''
-            if i > 0:
-                separator = '\n'    
-            
-            query = separator.join([query, '''MATCH (m%d:Materia) WHERE m%d.key = "%s"''' %(i, i, m)])
-
-        for i, m in enumerate(data['materia']):
-            separator = '\n'
-            query = separator.join([query, '''MATCH (m%d:Turma)-[r%d]->(m%d)''' %(i, i, i)])
-        
-        for i, m in enumerate(data['materia']):
-            separator = '\n'
-            if (i == 0):
+            if i == 0 :
                 separator = ''
-                query = separator.join([query, '\n', 'CREATE', '''(u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m%d),''' %(i)])
+            else:
+                separator = ' '
+            query = separator.join([query, '''MATCH (m%d:Materia) WHERE m%d.key = "%s"''' %(i, i, m)])
+            
+        for i, m in enumerate(data['materia']):
+            query = separator.join([query, '''MATCH (t%d:Turma)-[r%d]->(t%d)''' %(i, i, i)])
+
+        for i, m in enumerate(data['materia']):
+            if (i == 0):
+                query = separator.join([query, 'CREATE', '''(u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m%d),''' %(i)])
             else: 
                 query = separator.join([query, '''(u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m%d)''' %(i)])
 
         print(query)
-        # query = '''MATCH (u1:Usuario) WHERE u1.login_usuario = "%s" 
-        #    MATCH (c1:Curso) WHERE c1.palavra_chave = "%s"
-        #    MATCH (m1:Materia) WHERE m1.key = "%s"
-        #    CREATE (u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m1)
-        #    RETURN u1, c1, m1''' %(login, data['course'], data['materia'][0])
-
-        # print(query)
         # try:
         #     session = self.__driver.session(database=db) if db is not None else self.__driver.session()
         #     response = list(session.run(query, parameters))
@@ -164,8 +159,7 @@ class Neo4jConnection:
         # finally:
         #     if session is not None:
         #         session.close()
-        # return response
-        return []
+        return response
 
     def populateCourseGangSubject(self, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
