@@ -97,7 +97,7 @@ class Neo4jConnection:
         if len(subjects) == 1:
             query = '''MATCH (c:Curso)-[r0]->(t:Turma), (m:Materia)-[r1]->(t) WHERE c.palavra_chave = "%s" AND m.key = "%s" RETURN t''' %(course, subjects[0])
         else:
-            query = '''MATCH (c:Curso)-[r0]->(t:Turma), (m:Materia)-[r1]->(t) WHERE c.palavra_chave = "bsi" AND '''
+            query = '''MATCH (c:Curso)-[r0]->(t:Turma), (m:Materia)-[r1]->(t) WHERE c.palavra_chave = "%s" AND ''' %(course)
 
             conditions = '('
             for i, m in enumerate(subjects):
@@ -111,7 +111,7 @@ class Neo4jConnection:
                 else:
                     conditions = separator.join([conditions, '''m.key = "%s"''' %(m)])
 
-            query = ''.join([query, conditions, ' RETURN t'])
+            query = ''.join([query, conditions, ' RETURN DISTINCT t'])
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()
