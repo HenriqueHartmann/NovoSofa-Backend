@@ -15,6 +15,6 @@ class VinculoRequest(BaseModel):
         )
         login = vToken.decode_token()
         
-        conn.bindGraduationStudent(login, self.dict())
+        conn.bindGraduationStudent(self.course, login, self.dict())
         
 

@@ -128,37 +128,36 @@ class Neo4jConnection:
         session = None
         response = None
         
-        query = '''MATCH (c:Curso)-[r]->(m:Materia) WHERE c.palavra_chave = "%s" AND ''' %(course)
+        query = '''MATCH (u:Usuario) WHERE u.login_usuario = "%s" MATCH (c:Curso)-[r]->(m:Materia), (m)-[r1]->(t:Turma) WHERE c.palavra_chave = "%s" AND ''' %(login, course)
         separator = ''
+        create = ''' CREATE (u)-[:MATRICULADO]->(c), (u)-[:INSCREVE_MATERIA]->(m)'''
 
         if len(data['materia']) == 1:
             separator.join([])
+            query = separator.join([query, '''m.key = "%s"''' %(data['materia'][0])])
+        else:
+            conditions = ''
 
-        for i, m in enumerate(data['materia']):
-            if i == 0 :
-                separator = ''
-            else:
-                separator = ' '
-            query = separator.join([query, '''MATCH (m%d:Materia) WHERE m%d.key = "%s"''' %(i, i, m)])
-            
-        for i, m in enumerate(data['materia']):
-            query = separator.join([query, '''MATCH (t%d:Turma)-[r%d]->(t%d)''' %(i, i, i)])
+            for i, m in enumerate(data["materia"]):
+                if i == 0:
+                    conditions = separator.join([conditions, '''(m.key = "%s" OR ''' %(m)])
+                elif i == (len(data['materia']) - 1):
+                    conditions = separator.join([conditions, '''m.key = "%s")''' %(m)])
+                else:
+                    conditions = conditions.join([conditions, '''m.key = "%s OR "''' %(m)])
+                    
+            query = separator.join([query, conditions])
 
-        for i, m in enumerate(data['materia']):
-            if (i == 0):
-                query = separator.join([query, 'CREATE', '''(u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m%d),''' %(i)])
-            else: 
-                query = separator.join([query, '''(u1)-[:MATRICULADO]->(c1), (u1)-[:INSCREVE_MATERIA]->(m%d)''' %(i)])
+        query = separator.join([query, create])
 
-        print(query)
-        # try:
-        #     session = self.__driver.session(database=db) if db is not None else self.__driver.session()
-        #     response = list(session.run(query, parameters))
-        # except Exception as e:
-        #     print("Query failed: ", e)
-        # finally:
-        #     if session is not None:
-        #         session.close()
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
         return response
 
     def populateCourseGangSubject(self, parameters=None, db=None):
