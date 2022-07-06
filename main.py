@@ -12,7 +12,7 @@ from models.Materia import MateriaResponse
 from models.Turma import Turma
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
-from models.Vinculo import PostVinculoRequest, VinculoRequest
+from models.Vinculo import VinculoRequest
 import uuid
 
 load_dotenv()
@@ -122,7 +122,7 @@ def login(user: UsuarioLogin, response: Response):
 
     return body
 
-@app.post("/CriarNovoUsuario", response_model=List[Usuario], response_model_exclude={"senha_usuario"}, responses={400: {"model": Message}}, status_code=201)
+@app.post("/CriarNovoUsuario", response_model=List[Usuario], response_model_exclude={"senha_usuario"}, status_code=201)
 def create_new_user(user: Usuario, response: Response):
     body = []
 
@@ -158,7 +158,7 @@ def create_new_user(user: Usuario, response: Response):
 
     return body
 
-@app.get("/Usuarios", response_model=List[Usuario], response_model_exclude={"senha_usuario"}, responses={401: {"model": Message}}, status_code=200)
+@app.get("/Usuarios", response_model=List[Usuario], response_model_exclude={"senha_usuario"}, status_code=200)
 def get_all_users(token: str, response: Response):
     body = []
 
@@ -183,7 +183,7 @@ def get_all_users(token: str, response: Response):
     
     return body
 
-@app.get("/Usuario", response_model=List[Usuario], response_model_exclude={"senha_usuario"}, responses={401: {"model": Message}}, status_code=200)
+@app.get("/Usuario", response_model=List[Usuario], response_model_exclude={"senha_usuario"}, status_code=200)
 def get_user(login: str, token: str, response: Response):
     body = []
 
@@ -207,7 +207,7 @@ def get_user(login: str, token: str, response: Response):
     
     return body
 
-@app.get("/Cursos", response_model=List[Curso], responses={401: {"model": Message}}, status_code=200)
+@app.get("/Cursos", response_model=List[Curso], status_code=200)
 def get_courses(token: str, response: Response):
     body = []
 
@@ -229,7 +229,7 @@ def get_courses(token: str, response: Response):
 
     return body
 
-@app.get("/MedioMaterias", response_model=List[MateriaResponse], responses={401: {"model": Message}}, status_code=200)
+@app.get("/MedioMaterias", response_model=List[MateriaResponse], status_code=200)
 def get_graduation_subjects(course: str, token: str, response: Response):
     body = []
 
@@ -253,7 +253,7 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
     return body
 
-@app.get("/SuperiorMaterias", response_model=List[MateriaResponse], responses={401: {"model": Message}}, status_code=200)
+@app.get("/SuperiorMaterias", response_model=List[MateriaResponse], status_code=200)
 def get_graduation_subjects(course: str, token: str, response: Response):
     body = []
 
@@ -277,7 +277,7 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
     return body
 
-@app.get("/TurmasPorMateria", response_model=List[Turma], responses={401: {"model": Message}}, status_code=200)
+@app.get("/TurmasPorMateria", response_model=List[Turma], status_code=200)
 def get_gang_subjects(course: str, token: str, response: Response, subjects: List[str] = Depends(parse_list)):
     body = []
 
@@ -311,8 +311,8 @@ def get_gang_subjects(course: str, token: str, response: Response, subjects: Lis
 
     return body
 
-@app.get("/VinculosUsuario", response_model=List, responses={401: {"model": Message}}, status_code=200)
-def get_user_binds(vinculo: VinculoRequest, token: str, response: Response):
+@app.get("/VinculosUsuario", response_model=List, status_code=200)
+def get_user_binds(userType: int, token: str, response: Response):
     body = []
 
     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
@@ -322,13 +322,24 @@ def get_user_binds(vinculo: VinculoRequest, token: str, response: Response):
 
         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
 
-    vinculo.get_user_binds(token, neoConn)
+    vToken = ValidateToken(
+        token=token
+    )
+    login = vToken.decode_token()
 
-    # print("BINDS: ", binds)
+    binds = neoConn.getStudentBinds(login, userType)
+
+    print("BINDS: ", binds)
+
+    if len(binds) == 0:
+        print('Result is Empty')
+        response.status_code = status.HTTP_204_NO_CONTENT
+
+        return JSONResponse(status_code=204, content=[{"message": "Result is Empty"}]) 
 
     return body
 
-@app.post("/SuperiorVincular", responses={401: {"model": Message}}, status_code=201)
+@app.post("/SuperiorVincular", status_code=201)
 def bind_course(vinculo: VinculoRequest, token: str, response: Response):
     body = []
 
@@ -347,7 +358,7 @@ def bind_course(vinculo: VinculoRequest, token: str, response: Response):
 # def get_uuid():
 #     return str(uuid.uuid1())
 
-@app.post("/PopularCursoTurmaMateria", responses={400: {"model": Message}}, status_code=201)
+@app.post("/PopularCursoTurmaMateria", status_code=201)
 def populate():
     couchConn.populateCourseGangSubject()
     neoConn.populateCourseGangSubject()
