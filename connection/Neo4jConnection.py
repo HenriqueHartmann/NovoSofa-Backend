@@ -123,6 +123,27 @@ class Neo4jConnection:
                 session.close()
         return response
 
+    def getStudentBinds(self, login: str, userType: int, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+        query = ''
+        
+        if userType == 1:
+            query = '''MATCH (u:Usuario)-[r0]->(c:Curso), (u)-[r1]->(m:Materia) WHERE u.login_usuario = "%s" RETURN DISTINCT u, c, m''' %(login)
+        else:
+            query = '''MATCH (u:Usuario)-[r0]->(c:Curso), (u)-[r1]->(m:Materia), (u)-[r2]->(t:Turma) WHERE u.login_usuario = "%s" RETURN DISTINCT u, c, m, t''' %(login)
+
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
     def bindGraduationStudent(self, course: str, login: str, data: dict, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
@@ -130,7 +151,7 @@ class Neo4jConnection:
         
         query = '''MATCH (u:Usuario) WHERE u.login_usuario = "%s" MATCH (c:Curso)-[r]->(m:Materia), (m)-[r1]->(t:Turma) WHERE c.palavra_chave = "%s" AND ''' %(login, course)
         separator = ''
-        create = ''' CREATE (u)-[:MATRICULADO]->(c), (u)-[:INSCREVE_MATERIA]->(m)'''
+        create = ''' MERGE (u)-[:MATRICULADO]->(c) MERGE (u)-[:INSCREVE_MATERIA]->(m)'''
 
         if len(data['materia']) == 1:
             separator.join([])

@@ -12,7 +12,7 @@ from models.Materia import MateriaResponse
 from models.Turma import Turma
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
-from models.Vinculo import VinculoRequest
+from models.Vinculo import PostVinculoRequest, VinculoRequest
 import uuid
 
 load_dotenv()
@@ -277,7 +277,7 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
     return body
 
-@app.get("/TurmasPorMateria", response_model=List[Turma],responses={401: {"model": Message}}, status_code=200)
+@app.get("/TurmasPorMateria", response_model=List[Turma], responses={401: {"model": Message}}, status_code=200)
 def get_gang_subjects(course: str, token: str, response: Response, subjects: List[str] = Depends(parse_list)):
     body = []
 
@@ -308,6 +308,23 @@ def get_gang_subjects(course: str, token: str, response: Response, subjects: Lis
        response.status_code = status.HTTP_404_NOT_FOUND
 
        return JSONResponse(status_code=404, content=[{"message": "Gang(s) not found"}])
+
+    return body
+
+@app.get("/VinculosUsuario", response_model=List, responses={401: {"model": Message}}, status_code=200)
+def get_user_binds(vinculo: VinculoRequest, token: str, response: Response):
+    body = []
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+    vinculo.get_user_binds(token, neoConn)
+
+    # print("BINDS: ", binds)
 
     return body
 
