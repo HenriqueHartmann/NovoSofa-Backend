@@ -1,4 +1,4 @@
-import json
+from typing import List
 from couchbase.cluster import Cluster
 from couchbase.options import ClusterOptions, QueryOptions
 from couchbase.auth import PasswordAuthenticator
@@ -40,7 +40,7 @@ class CouchbaseConnection:
 
         return response
 
-    def get(self, collection: str, key):
+    def get(self, collection: str, key: str):
         response = []
         bucket = self.__cluster.bucket("novosofa")
         coll = bucket.scope("project").collection(collection)
@@ -49,6 +49,21 @@ class CouchbaseConnection:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             response = coll.get(key)
+        except Exception as e:
+            print('ERRO:')
+            print(e)
+
+        return response
+
+    def getMulti(self, collection: str, keys: List[str]):
+        response = []
+        bucket = self.__cluster.bucket("novosofa")
+        coll = bucket.scope("project").collection(collection)
+
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            response = coll.get_multi(keys)
         except Exception as e:
             print('ERRO:')
             print(e)
@@ -70,7 +85,7 @@ class CouchbaseConnection:
 
         return response
     
-    def insert_multi(self, collection: str, keys: dict):
+    def insertMulti(self, collection: str, keys: dict):
         response = ""
         bucket = self.__cluster.bucket("novosofa")
         coll = bucket.scope("project").collection(collection)
@@ -306,7 +321,7 @@ class CouchbaseConnection:
             }
         }
 
-        self.insert_multi('materia', data['subjects'])
-        self.insert_multi('turma', data['gangs'])
-        self.insert_multi('curso', data['courses'])
+        self.insertMulti('materia', data['subjects'])
+        self.insertMulti('turma', data['gangs'])
+        self.insertMulti('curso', data['courses'])
                

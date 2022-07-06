@@ -130,7 +130,7 @@ class Neo4jConnection:
         query = ''
         
         if userType == 1:
-            query = '''MATCH (u:Usuario)-[r0]->(c:Curso), (u)-[r1]->(m:Materia) WHERE u.login_usuario = "%s" RETURN DISTINCT u, c, m''' %(login)
+            query = '''MATCH (u:Usuario)-[r0]->(c:Curso), (u)-[r1]->(m:Materia), (c)-[r2]->(t:Turma)-[r3]->(m) WHERE u.login_usuario = "%s" RETURN DISTINCT u, c, m, t''' %(login)
         else:
             query = '''MATCH (u:Usuario)-[r0]->(c:Curso), (u)-[r1]->(m:Materia), (u)-[r2]->(t:Turma) WHERE u.login_usuario = "%s" RETURN DISTINCT u, c, m, t''' %(login)
 

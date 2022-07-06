@@ -8,11 +8,11 @@ from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso
-from models.Materia import MateriaResponse
+from models.Materia import MateriaRequest, MateriaResponse
 from models.Turma import Turma
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
-from models.Vinculo import VinculoRequest
+from models.Vinculo import VinculoRequest, VinculoResponse
 import uuid
 
 load_dotenv()
@@ -311,7 +311,7 @@ def get_gang_subjects(course: str, token: str, response: Response, subjects: Lis
 
     return body
 
-@app.get("/VinculosUsuario", response_model=List, status_code=200)
+@app.get("/VinculosUsuario", response_model=List[VinculoResponse], response_model_exclude={"usuario": {"senha_usuario"}}, status_code=200)
 def get_user_binds(userType: int, token: str, response: Response):
     body = []
 
@@ -329,15 +329,74 @@ def get_user_binds(userType: int, token: str, response: Response):
 
     binds = neoConn.getStudentBinds(login, userType)
 
-    print("BINDS: ", binds)
-
     if len(binds) == 0:
-        print('Result is Empty')
-        response.status_code = status.HTTP_204_NO_CONTENT
+        print('User do not have bonds')
+        response.status_code = status.HTTP_404_NOT_FOUND
 
-        return JSONResponse(status_code=204, content=[{"message": "Result is Empty"}]) 
+        return JSONResponse(status_code=404, content=[{"message": "User do not have bonds"}]) 
+    else:
+        userKey = ''
+        courseKey = ''
+        subjectKeys = []
+        gangsKeys = []
 
-    return body
+        for item in binds:
+            if userKey == '':
+                userKey = item['u']['id']
+            if courseKey == '':
+                courseKey = item['c']['key']
+            subjectKeys.append(item['m']['key'])
+            gangsKeys.append(item['t']['key'])
+
+        user = None
+        course = None
+        subjects = []
+        gangs = []
+
+        userResult = couchConn.get('usuario', userKey).value
+        courseResult = couchConn.get('curso', courseKey).value
+        subjectsResult = couchConn.getMulti('materia', subjectKeys).results.items()
+        gangsResult = couchConn.getMulti('turma', gangsKeys).results.items()
+
+        user = Usuario(
+                cpf=userResult['cpf'],
+                login_usuario=userResult['login_usuario'],
+                nome_usuario=userResult['nome_usuario'],
+                email_usuario=returnKey(userResult, 'email_usuario'),
+                senha_usuario=userResult['senha_usuario'],
+                tipo_usuario=userResult['tipo_usuario'])
+        
+        course = Curso(
+            ch_curso=courseResult['ch_curso'],
+            nome_curso=courseResult['nome_curso'])
+
+        for row in subjectsResult:
+            row_content = row[1].value
+            subject = MateriaRequest(
+                ch_materia=row_content['ch_materia'],
+                descricao_materia=row_content['descricao_materia'],
+                tipo_ensino=row_content['tipo_ensino'])
+            subjects.append(subject)
+
+        for row in gangsResult:
+           row_content = row[1].value
+           gang = Turma(
+            descricao_turma=row_content['descricao_turma'],
+            dt_inicio=row_content['dt_inicio'],
+            dt_fim=row_content['dt_fim']
+           )
+           gangs.append(gang)
+
+        userBonds = VinculoResponse(
+            usuario=user,
+            curso=course,
+            materias=subjects,
+            turmas=gangs
+        )
+        
+        body.append(userBonds)
+
+        return body
 
 @app.post("/SuperiorVincular", status_code=201)
 def bind_course(vinculo: VinculoRequest, token: str, response: Response):
