@@ -14,3 +14,9 @@ class Turma(BaseModel):
 
         query = '''CREATE (n:Turma {id: "%s", descricao_turma: "%s"}) RETURN n''' %(key, self.descricao_turma)  
         connN.query(query)
+
+class TurmaResponse(BaseModel):
+    key: str = ""
+    descricao_turma: str
+    dt_inicio: str
+    dt_fim: str

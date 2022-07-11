@@ -11,7 +11,9 @@ class TipoEnsino(int, Enum):
 class MateriaRequest(BaseModel):
     ch_materia: int
     descricao_materia: str
-    tipo_ensino: TipoEnsino = TipoEnsino.medio
+    tipo_ensino: TipoEnsino = TipoEnsino.superior
+    dt_inicio: str = ""
+    dt_fim: str = ""
 
     def create_document(self, key: str, connC: CouchbaseConnection, connN: Neo4jConnection):
         connC.insert('turma', key, self.dict())
@@ -24,3 +26,5 @@ class MateriaResponse(BaseModel):
     ch_materia: int
     descricao_materia: str
     tipo_ensino: TipoEnsino = TipoEnsino.medio
+    dt_inicio: str = ""
+    dt_fim: str = ""

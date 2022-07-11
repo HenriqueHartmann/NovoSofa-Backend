@@ -9,10 +9,10 @@ from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso
 from models.Materia import MateriaRequest, MateriaResponse
-from models.Turma import Turma
+from models.Turma import Turma, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
-from models.Vinculo import VinculoRequest, VinculoResponse
+from models.Vinculo import ProfessorVinculoRequest, VinculoRequest, VinculoResponse
 import uuid
 
 load_dotenv()
@@ -253,6 +253,30 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
     return body
 
+@app.get("/SuperiorTurmas", response_model=List[TurmaResponse], status_code=200)
+def get_graduation_gangs(course: str, token: str, response: Response):
+    body = []
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+    
+    gangs = neoConn.getCourseGangs(course)
+    for item in gangs:
+        result = couchConn.get('turma', item['m']['key']).value
+        gang = TurmaResponse(
+            key=item['m']['key'],
+            descricao_turma=result['descricao_turma'],
+            dt_inicio=result['dt_inicio'],
+            dt_fim=result['dt_fim']
+        )
+        body.append(gang)
+
+    return body
+
 @app.get("/SuperiorMaterias", response_model=List[MateriaResponse], status_code=200)
 def get_graduation_subjects(course: str, token: str, response: Response):
     body = []
@@ -399,9 +423,7 @@ def get_user_binds(userType: int, token: str, response: Response):
         return body
 
 @app.post("/SuperiorVincular", status_code=201)
-def bind_course(vinculo: VinculoRequest, token: str, response: Response):
-    body = []
-
+def bind_graduation(vinculo: VinculoRequest, token: str, response: Response):
     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
     if (token_is_valid is False):
         print('Token is Invalid')
@@ -411,7 +433,20 @@ def bind_course(vinculo: VinculoRequest, token: str, response: Response):
 
     vinculo.bind_graduation(token, neoConn)
 
-    return body
+    return []
+
+@app.post("/ProfessorVincular", status_code=201)
+def bind_professor(vinculo: ProfessorVinculoRequest, token: str, response: Response):
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+    vinculo.bind_professor(token, neoConn)
+
+    return []
 
 # @app.get("/GerarUUID")
 # def get_uuid():

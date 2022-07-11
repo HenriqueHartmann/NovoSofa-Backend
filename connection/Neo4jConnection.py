@@ -1,5 +1,3 @@
-from fileinput import close
-from tkinter.ttk import Separator
 from typing import List
 from neo4j import GraphDatabase
 
@@ -89,6 +87,23 @@ class Neo4jConnection:
                 session.close()
         return response
 
+    def getCourseGangs(self, keyWord: str, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+
+        query = '''MATCH (c:Curso)-[r]->(t:Turma) WHERE c.palavra_chave = '%s' RETURN t''' %(keyWord)
+
+        try:
+            session = self._driver.session(database=db) if db is not None else self._driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
     def getSubjectsGangs(self, course:str, subjects: List[str], parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
@@ -144,32 +159,93 @@ class Neo4jConnection:
                 session.close()
         return response
 
-    def bindGraduationStudent(self, course: str, login: str, data: dict, parameters=None, db=None):
+    def bindGraduationStudent(self, login: str, data: dict, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
         response = None
         
-        query = '''MATCH (u:Usuario) WHERE u.login_usuario = "%s" MATCH (c:Curso)-[r]->(m:Materia), (m)-[r1]->(t:Turma) WHERE c.palavra_chave = "%s" AND ''' %(login, course)
+        query = '''MATCH (u:Usuario) WHERE u.login_usuario = "%s" MATCH (c:Curso)-[r]->(m:Materia), (m)-[r1]->(t:Turma) WHERE c.palavra_chave = "%s" AND ''' %(login, data['curso'])
         separator = ''
         create = ''' MERGE (u)-[:MATRICULADO]->(c) MERGE (u)-[:INSCREVE_MATERIA]->(m)'''
 
-        if len(data['materia']) == 1:
-            separator.join([])
+        if len(data['materias']) == 1:
             query = separator.join([query, '''m.key = "%s"''' %(data['materia'][0])])
         else:
             conditions = ''
 
-            for i, m in enumerate(data["materia"]):
+            for i, m in enumerate(data["materias"]):
                 if i == 0:
                     conditions = separator.join([conditions, '''(m.key = "%s" OR ''' %(m)])
-                elif i == (len(data['materia']) - 1):
+                elif i == (len(data['materias']) - 1):
                     conditions = separator.join([conditions, '''m.key = "%s")''' %(m)])
                 else:
-                    conditions = conditions.join([conditions, '''m.key = "%s OR "''' %(m)])
+                    conditions = separator.join([conditions, '''m.key = "%s OR "''' %(m)])
                     
             query = separator.join([query, conditions])
 
         query = separator.join([query, create])
+
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
+    def bindProfessor(self, login: str, data: dict, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+        
+        query = '''MATCH (u:Usuario) WHERE u.login_usuario = "%s" MATCH (c:Curso)-[r]->(m:Materia), (m)-[r1]->(t:Turma) WHERE ''' %(login)
+        separator = ''
+        courses = ''
+        subjects = ''
+        gangs = ''
+        create = '''MERGE (u)-[:CONTRATADO_PARA]->(c) MERGE (u)-[:LECIONA_MATERIA]->(m) MERGE (u)-[:LECIONA_TURMA]->(t)''' # TODO: Adicionar atributos nos relacionamentos, ou criar novos nós com esses atributos
+
+        if len(data['cursos']) == 1:
+            separator.join([courses, '''c.palavra_chave = "%s" AND ''' %(data['curso'][0])])
+        else:
+            for i, c in enumerate(data['cursos']):
+                if i == 0:
+                    courses = separator.join([courses, '''(c.palavra_chave = "%s" OR ''' %(c)])
+                elif i == (len(data['cursos']) - 1):
+                    courses = separator.join([courses, '''c.palavra_chave = "%s") AND ''' %(c)])
+                else:
+                    courses = courses.join([courses, '''c.palavra_chave = "%s OR "''' %(c)])
+
+        if len(data['materias']) == 1:
+            query = separator.join([query, '''m.key = "%s" AND ''' %(data['materias'][0])])
+        else:
+            subjects = ''
+
+            for i, m in enumerate(data["materias"]):
+                if i == 0:
+                    subjects = separator.join([subjects, '''(m.key = "%s" OR ''' %(m)])
+                elif i == (len(data['materias']) - 1):
+                    subjects = separator.join([subjects, '''m.key = "%s") AND ''' %(m)])
+                else:
+                    subjects = separator.join([subjects, '''m.key = "%s OR "''' %(m)])
+
+        if len(data['turmas']) == 1:
+            gangs = separator.join([gangs, '''t.key = "%s"''' %(data['turmas'][0])])
+        else:
+            gangs = ''
+
+            for i, t in enumerate(data["turmas"]):
+                if i == 0:
+                    gangs = separator.join([gangs, '''(t.key = "%s" OR ''' %(t)])
+                elif i == (len(data['turmas']) - 1):
+                    gangs = separator.join([gangs, '''t.key = "%s") ''' %(t)])
+                else:
+                    gangs = separator.join([gangs, '''t.key = "%s OR "''' %(t)])
+
+        query = separator.join([query, courses, subjects, gangs, create])
+        print(query)
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()

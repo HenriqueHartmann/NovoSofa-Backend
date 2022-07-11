@@ -10,8 +10,8 @@ from models.Usuario import Usuario
 
 
 class VinculoRequest(BaseModel):
-    course: str
-    materia: List[str]
+    curso: str
+    materias: List[str]
 
     def bind_graduation(self, token: str, conn: Neo4jConnection):
         vToken = ValidateToken(
@@ -19,7 +19,20 @@ class VinculoRequest(BaseModel):
         )
         login = vToken.decode_token()
         
-        conn.bindGraduationStudent(self.course, login, self.dict())
+        conn.bindGraduationStudent(login, self.dict())
+
+class ProfessorVinculoRequest(BaseModel):
+    cursos: List[str]
+    materias: List[str]
+    turmas: List[str]
+
+    def bind_professor(self, token: str, conn: Neo4jConnection):
+        vToken = ValidateToken(
+            token=token
+        )
+        login = vToken.decode_token()
+        
+        conn.bindProfessor(login, self.dict())
         
 class VinculoResponse(BaseModel):
     usuario: Usuario
