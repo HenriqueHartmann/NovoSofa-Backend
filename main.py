@@ -9,6 +9,7 @@ from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso
 from models.Materia import MateriaRequest, MateriaResponse
+from models.RegistroAula import RegistroAulaRequest
 from models.Turma import Turma, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
@@ -456,8 +457,20 @@ def bind_professor(vinculo: ProfessorVinculoRequest, token: str, response: Respo
 
     return []
 
-# @app.get() TODO: Criar endpoint Registro Aula
+@app.post('/CriarRegistroAula', status_code=201)
+def create_class_record(record: RegistroAulaRequest, token: str, response: Response):
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
 
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+    
+    key = str(uuid.uuid1())
+
+    record.create_document(key, token, couchConn, neoConn)
+
+    return []
 
 # @app.get("/GerarUUID")
 # def get_uuid():

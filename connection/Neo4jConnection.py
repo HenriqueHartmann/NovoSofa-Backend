@@ -257,11 +257,15 @@ class Neo4jConnection:
                 session.close()
         return response
 
-    def bindClassRecord(self, data: dict, parameters=None, db=None):
+    def bindClassRecord(self, key: str, login: str, data: dict, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
         response = None
-        query = ''
+        query = '''MATCH (u:Usuario) MATCH (c:Curso)-[r0]->(t:Turma)-[r1]->(m:Materia) WHERE u.login_usuario="%s" AND c.palavra_chave="%s" AND t.key="%s" AND m.key="%s" ''' %(login, data['curso'], data['turma'], data['materia'])
+        createRecord = '''CREATE (ra:RegistroAula {key: "%s"}) ''' %(key)
+        create = '''MERGE (u)-[:CADASTRA]->(ra) MERGE (ra)-[:POSSUI]->(c) MERGE (ra)-[:POSSUI]->(t) MERGE (ra)-[:POSSUI]->(m)'''
+
+        query = ''.join([query, createRecord, create])
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()
