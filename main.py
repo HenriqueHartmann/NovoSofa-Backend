@@ -360,25 +360,26 @@ def get_user_binds(userType: int, token: str, response: Response):
         return JSONResponse(status_code=404, content=[{"message": "User do not have bonds"}]) 
     else:
         userKey = ''
-        courseKey = ''
+        courseKeys = []
         subjectKeys = []
         gangsKeys = []
 
         for item in binds:
             if userKey == '':
                 userKey = item['u']['id']
-            if courseKey == '':
-                courseKey = item['c']['key']
+            # if courseKey == '':
+            #     courseKey = item['c']['key']
+            courseKeys.append(item['c']['key'])
             subjectKeys.append(item['m']['key'])
             gangsKeys.append(item['t']['key'])
 
         user = None
-        course = None
+        courses = []
         subjects = []
         gangs = []
 
         userResult = couchConn.get('usuario', userKey).value
-        courseResult = couchConn.get('curso', courseKey).value
+        coursesResult = couchConn.getMulti('curso', courseKeys).results.items()
         subjectsResult = couchConn.getMulti('materia', subjectKeys).results.items()
         gangsResult = couchConn.getMulti('turma', gangsKeys).results.items()
 
@@ -390,9 +391,16 @@ def get_user_binds(userType: int, token: str, response: Response):
                 senha_usuario=userResult['senha_usuario'],
                 tipo_usuario=userResult['tipo_usuario'])
         
-        course = Curso(
-            ch_curso=courseResult['ch_curso'],
-            nome_curso=courseResult['nome_curso'])
+        # course = Curso(
+        #     ch_curso=courseResult['ch_curso'],
+        #     nome_curso=courseResult['nome_curso'])
+
+        for row in coursesResult:
+            row_content = row[1].value
+            course = Curso(
+                ch_curso=row_content['ch_curso'],
+                nome_curso=row_content['nome_curso'])
+            courses.append(course)
 
         for row in subjectsResult:
             row_content = row[1].value
@@ -413,7 +421,7 @@ def get_user_binds(userType: int, token: str, response: Response):
 
         userBonds = VinculoResponse(
             usuario=user,
-            curso=course,
+            curso=courses,
             materias=subjects,
             turmas=gangs
         )
@@ -447,6 +455,9 @@ def bind_professor(vinculo: ProfessorVinculoRequest, token: str, response: Respo
     vinculo.bind_professor(token, neoConn)
 
     return []
+
+# @app.get() TODO: Criar endpoint Registro Aula
+
 
 # @app.get("/GerarUUID")
 # def get_uuid():

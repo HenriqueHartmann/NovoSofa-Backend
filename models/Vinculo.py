@@ -36,6 +36,6 @@ class ProfessorVinculoRequest(BaseModel):
         
 class VinculoResponse(BaseModel):
     usuario: Usuario
-    curso: Curso
+    curso: List[Curso]
     materias: List[MateriaRequest]
     turmas: List[Turma]
