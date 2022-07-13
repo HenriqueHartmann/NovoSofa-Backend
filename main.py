@@ -1,5 +1,6 @@
 from typing import List, Optional
 import os
+from unittest import result
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,9 +8,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
-from models.Curso import Curso
+from models.Curso import Curso, CursoResponse, CursoTurmaMateria
 from models.Materia import MateriaRequest, MateriaResponse
-from models.RegistroAula import RegistroAulaRequest
+from models.RegistroAula import GetRegistroAula, RegistroAulaRequest
 from models.Turma import Turma, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
@@ -278,8 +279,8 @@ def get_graduation_gangs(course: str, token: str, response: Response):
 
     return body
 
-@app.get("/SuperiorMaterias", response_model=List[MateriaResponse], status_code=200)
-def get_graduation_subjects(course: str, token: str, response: Response):
+@app.get("/CursosTurmasMaterias", response_model=List[CursoResponse], status_code=200)
+def get_gangs_subjects_from_courses(token: str, response: Response, courses: List[str] = Depends(parse_list)):
     body = []
 
     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
@@ -289,18 +290,78 @@ def get_graduation_subjects(course: str, token: str, response: Response):
 
         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
     
-    subjects = neoConn.getCourseSubjects(course, 1)
-    for item in subjects:
-        result = couchConn.get('materia', item['m']['key']).value
-        subject = MateriaResponse(
-            key=item['m']['key'],
-            ch_materia=result['ch_materia'],
-            descricao_materia=result['descricao_materia'],
-            tipo_ensino=1
-        )
-        body.append(subject)
+    if courses is None:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+
+        return JSONResponse(status_code=400, content=[{"message": "No course selected"}])
+
+    results = neoConn.getCoursesSubjects(courses, 1)
+
+    if len(results) == 0:
+        response.status_code = status.HTTP_404_NOT_FOUND
+
+        return JSONResponse(status_code=404, content=[{"message": "Data not found"}])
+    else:
+        courseIds = []
+        courseObj = []
+
+        for item in results:
+            if item['c'].id not in courseIds:
+                courseIds.append(item['c'].id)
+                cObj = CursoTurmaMateria(id=item['c'].id, key=item['c']['key'])
+                courseObj.append(cObj)
+
+            for o in courseObj:
+                if o.id == item['r0'].nodes[0].id:
+                    if item['r0'].nodes[1]['key'] not in o.turmas:
+                        o.turmas.append(item['r0'].nodes[1]['key'])
+                if o.id == item['r1'].nodes[0].id:
+                    if item['r1'].nodes[1]['key'] not in o.materias:
+                        o.materias.append(item['r1'].nodes[1]['key'])
+
+        for o in courseObj:
+            course: Curso
+            subjects = []
+            gangs = []
+
+            courseResult = couchConn.get('curso', o.key).value
+            course = Curso(
+                ch_curso=courseResult['ch_curso'],
+                nome_curso=courseResult['nome_curso']
+            )
+
+            gangsResult = couchConn.getMulti('turma', o.turmas).results.items()
+            subjectsResult = couchConn.getMulti('materia', o.materias).results.items()
+
+            for row in subjectsResult:
+                row_content = row[1].value
+                subject = MateriaRequest(
+                    ch_materia=row_content['ch_materia'],
+                    descricao_materia=row_content['descricao_materia'],
+                    tipo_ensino=row_content['tipo_ensino'])
+                subjects.append(subject)
+
+            for row in gangsResult:
+                row_content = row[1].value
+                gang = Turma(
+                    descricao_turma=row_content['descricao_turma'],
+                    dt_inicio=row_content['dt_inicio'],
+                    dt_fim=row_content['dt_fim']
+                )
+                gangs.append(gang)
+
+            body.append(
+                CursoResponse(
+                    curso=course,
+                    turmas=gangs,
+                    materias=subjects
+                )
+            )
 
     return body
+
+# @app.get("/CursoMaterias", response_model=List[MateriaResponse], status_code=200)
+# def get_course_subjects(course: str, token: str, response: Response):
 
 @app.get("/TurmasPorMateria", response_model=List[Turma], status_code=200)
 def get_gang_subjects(course: str, token: str, response: Response, subjects: List[str] = Depends(parse_list)):
@@ -454,6 +515,25 @@ def bind_professor(vinculo: ProfessorVinculoRequest, token: str, response: Respo
         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
 
     vinculo.bind_professor(token, neoConn)
+
+    return []
+
+@app.get('/RegistroAula', status_code=201)
+def create_class_record(token: str, response: Response, curso: str = "", turma: str= "", materia: str = ""):
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+    
+    record = GetRegistroAula(
+        curso=curso,
+        turma=turma,
+        materia=materia
+    )
+
+    record.get_document(token, couchConn, neoConn)
 
     return []
 

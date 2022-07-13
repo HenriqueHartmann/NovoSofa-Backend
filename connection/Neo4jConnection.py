@@ -70,12 +70,25 @@ class Neo4jConnection:
                 session.close()
         return response
 
-    def getCourseSubjects(self, keyWord: str, type: int, parameters=None, db=None):
+    def getCoursesSubjects(self, courses: List[str], type: int, parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
         response = None
 
-        query = '''MATCH (n:Curso)-[r]->(m:Materia) WHERE n.palavra_chave = '%s' AND m.tipo = %d RETURN m''' %(keyWord, type)
+        query = '''MATCH (t:Turma)<-[r0]-(c:Curso)-[r1]->(m:Materia) WHERE m.tipo=%d ''' %(type)
+
+        if len(courses) == 1:
+            query = ''.join([query, 'AND ', '''c.palavra_chave="%s" ''' %(courses[0])])
+        else:
+            for i, item in enumerate(courses):
+                if i == 0:
+                    query = ''.join([query, 'AND ', '''(c.palavra_chave="%s" OR ''' %(item)])
+                elif i == len(courses) - 1:
+                    query = ''.join([query, '''c.palavra_chave="%s") ''' %(item)])
+                else:
+                    query = ''.join([query, ''' c.palavra_chave="%s" OR ''' %(item)])
+        
+        query = ''.join([query, 'RETURN c, m, t, r0, r1'])
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()
@@ -255,6 +268,43 @@ class Neo4jConnection:
         finally:
             if session is not None:
                 session.close()
+        return response
+    
+    def getClassRecord(self, login: str, data: dict, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+        query = '''MATCH (u:Usuario)-[r0]->(ra:RegistroAula), (ra)-[r1]->(c:Curso), (ra)-[r2]->(t:Turma), (ra)-[r3]->(m:Materia) WHERE u.login_usuario="%s" ''' %(login)
+        filterCourse = '''c.palavra_chave="%s" ''' %(data['curso'])
+        filterGang = '''t.key="%s" ''' %(data['turma'])
+        filterSubject = '''m.key="%s" ''' %(data['materia'])
+        r = '''RETURN u, ra, c, t, m'''
+
+        if data['curso'] != "":
+            query = ''.join([query, 'AND ', filterCourse])
+            if data['turma'] != "":
+                query = ''.join([query, 'AND ', filterGang])
+            if data['materia'] != "":
+                query = ''.join(query, 'AND ', filterSubject)
+        elif data['turma'] != "":
+            query = ''.join([query, 'AND ', filterGang])
+            if data['materia'] != "":
+                query = ''.join([query, 'AND ', filterSubject])
+        elif data['materia'] != "":
+            query = ''.join([query, 'AND ', filterSubject])
+
+
+        query = ''.join([query, r])
+
+        print(query)
+        # try:
+        #     session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+        #     response = list(session.run(query, parameters))
+        # except Exception as e:
+        #     print("Query failed: ", e)
+        # finally:
+        #     if session is not None:
+        #         session.close()
         return response
 
     def bindClassRecord(self, key: str, login: str, data: dict, parameters=None, db=None):
