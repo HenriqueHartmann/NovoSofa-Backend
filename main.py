@@ -11,7 +11,7 @@ from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso, CursoResponse, CursoTurmaMateria
 from models.Materia import MateriaRequest, MateriaResponse
 from models.RegistroAula import GetRegistroAula, RegistroAulaRequest
-from models.Turma import Turma, TurmaResponse
+from models.Turma import Turma, TurmaMaterias, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
 from models.Vinculo import ProfessorVinculoRequest, VinculoRequest, VinculoResponse
@@ -231,29 +231,29 @@ def get_courses(token: str, response: Response):
 
     return body
 
-@app.get("/MedioMaterias", response_model=List[MateriaResponse], status_code=200)
-def get_graduation_subjects(course: str, token: str, response: Response):
-    body = []
+# @app.get("/MedioMaterias", response_model=List[MateriaResponse], status_code=200)
+# def get_graduation_subjects(course: str, token: str, response: Response):
+#     body = []
 
-    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
-    if (token_is_valid is False):
-        print('Token is Invalid')
-        response.status_code = status.HTTP_401_UNAUTHORIZED
+#     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+#     if (token_is_valid is False):
+#         print('Token is Invalid')
+#         response.status_code = status.HTTP_401_UNAUTHORIZED
 
-        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+#         return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
     
-    subjects = neoConn.getCourseSubjects(course, 0)
-    for item in subjects:
-        result = couchConn.get('materia', item['m']['key']).value
-        subject = MateriaResponse(
-            key=item['m']['key'],
-            ch_materia=result['ch_materia'],
-            descricao_materia=result['descricao_materia'],
-            tipo_ensino=1
-        )
-        body.append(subject)
+#     subjects = neoConn.getCourseSubjects(course, 0)
+#     for item in subjects:
+#         result = couchConn.get('materia', item['m']['key']).value
+#         subject = MateriaResponse(
+#             key=item['m']['key'],
+#             ch_materia=result['ch_materia'],
+#             descricao_materia=result['descricao_materia'],
+#             tipo_ensino=1
+#         )
+#         body.append(subject)
 
-    return body
+#     return body
 
 @app.get("/SuperiorTurmas", response_model=List[TurmaResponse], status_code=200)
 def get_graduation_gangs(course: str, token: str, response: Response):
@@ -360,8 +360,48 @@ def get_gangs_subjects_from_courses(token: str, response: Response, courses: Lis
 
     return body
 
-# @app.get("/CursoMaterias", response_model=List[MateriaResponse], status_code=200)
-# def get_course_subjects(course: str, token: str, response: Response):
+@app.get("/TurmaMaterias", response_model=List[TurmaMaterias], status_code=200)
+def get_gang_subjects(gang: str, token: str, response: Response):
+    body = []
+
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+    gangs = neoConn.getGangSubjects(gang)
+
+    gangObj = None
+    subjectObjs = []
+
+    for item in gangs:
+        if gangObj is None:
+            gangResult = couchConn.get('turma', item['t']['key']).value
+            gangObj = Turma(
+                descricao_turma=gangResult['descricao_turma'],
+                dt_inicio=gangResult['dt_inicio'],
+                dt_fim=gangResult['dt_fim'])
+
+        subjectsResult = couchConn.get('materia', item['m']['key']).value
+        subjectObj = MateriaRequest(
+                ch_materia=subjectsResult['ch_materia'],
+                descricao_materia=subjectsResult['descricao_materia'],
+                tipo_ensino=subjectsResult['tipo_ensino'])
+        subjectObjs.append(subjectObj)
+
+    body.append(TurmaMaterias(
+        turma=gangObj,
+        materias=subjectObjs
+    ))
+
+    if len(body) == 0:
+       response.status_code = status.HTTP_404_NOT_FOUND
+
+       return JSONResponse(status_code=404, content=[{"message": "Gang(s) not found"}])
+
+    return body
 
 @app.get("/TurmasPorMateria", response_model=List[Turma], status_code=200)
 def get_gang_subjects(course: str, token: str, response: Response, subjects: List[str] = Depends(parse_list)):

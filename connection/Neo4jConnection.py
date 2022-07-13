@@ -117,6 +117,23 @@ class Neo4jConnection:
                 session.close()
         return response
 
+    def getGangSubjects(self, gang: str, parameters=None, db=None):
+        assert self.__driver is not None, "Driver not initialized!"
+        session = None
+        response = None
+
+        query = '''MATCH (t:Turma)-[r0]->(m:Materia) WHERE t.key="%s" RETURN DISTINCT t, m''' %(gang)
+
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
+        return response
+
     def getSubjectsGangs(self, course:str, subjects: List[str], parameters=None, db=None):
         assert self.__driver is not None, "Driver not initialized!"
         session = None
