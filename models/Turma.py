@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
-from models.Materia import MateriaRequest
+from models.Materia import MateriaRequest, MateriaRequestKey
 
 
 class Turma(BaseModel):
@@ -26,3 +26,11 @@ class TurmaResponse(BaseModel):
 class TurmaMaterias(BaseModel):
     turma: Turma
     materias: List[MateriaRequest]
+
+class TurmaMateriasSimple(BaseModel):
+    turma: str = ""
+    materias: List[str] = []
+
+class TurmaMateriasResponse(BaseModel):
+    turma: TurmaResponse
+    materias: List[MateriaRequestKey]

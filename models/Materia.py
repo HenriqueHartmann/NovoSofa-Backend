@@ -21,6 +21,14 @@ class MateriaRequest(BaseModel):
         query = '''CREATE (n:Materia {id: "%s", descricao_materia: "%s"}) RETURN n''' %(key, self.descricao_materia)  
         connN.query(query)
 
+class MateriaRequestKey(BaseModel):
+    key: str = ""
+    ch_materia: int
+    descricao_materia: str
+    tipo_ensino: TipoEnsino = TipoEnsino.superior
+    dt_inicio: str = ""
+    dt_fim: str = ""
+
 class MateriaResponse(BaseModel):
     key: str
     ch_materia: int

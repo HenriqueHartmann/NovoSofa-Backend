@@ -75,7 +75,7 @@ class Neo4jConnection:
         session = None
         response = None
 
-        query = '''MATCH (t:Turma)<-[r0]-(c:Curso)-[r1]->(m:Materia) WHERE m.tipo=%d ''' %(type)
+        query = '''MATCH (m:Materia)<-[r2]-(t:Turma)<-[r0]-(c:Curso)-[r1]->(m) WHERE m.tipo=%d ''' %(type)
 
         if len(courses) == 1:
             query = ''.join([query, 'AND ', '''c.palavra_chave="%s" ''' %(courses[0])])
@@ -88,7 +88,7 @@ class Neo4jConnection:
                 else:
                     query = ''.join([query, ''' c.palavra_chave="%s" OR ''' %(item)])
         
-        query = ''.join([query, 'RETURN c, m, t, r0, r1'])
+        query = ''.join([query, 'RETURN c, m, t, r0, r1, r2'])
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()

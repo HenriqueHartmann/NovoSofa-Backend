@@ -9,9 +9,9 @@ from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso, CursoResponse, CursoTurmaMateria
-from models.Materia import MateriaRequest, MateriaResponse
+from models.Materia import MateriaRequest, MateriaRequestKey, MateriaResponse
 from models.RegistroAula import GetRegistroAula, RegistroAulaRequest
-from models.Turma import Turma, TurmaMaterias, TurmaResponse
+from models.Turma import Turma, TurmaMaterias, TurmaMateriasResponse, TurmaMateriasSimple, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
 from models.Vinculo import ProfessorVinculoRequest, VinculoRequest, VinculoResponse
@@ -312,16 +312,18 @@ def get_gangs_subjects_from_courses(token: str, response: Response, courses: Lis
                 courseObj.append(cObj)
 
             for o in courseObj:
+                obj = TurmaMateriasSimple()
                 if o.id == item['r0'].nodes[0].id:
-                    if item['r0'].nodes[1]['key'] not in o.turmas:
-                        o.turmas.append(item['r0'].nodes[1]['key'])
-                if o.id == item['r1'].nodes[0].id:
-                    if item['r1'].nodes[1]['key'] not in o.materias:
-                        o.materias.append(item['r1'].nodes[1]['key'])
+                    if keyGangAlreadyInserted(item['r0'].nodes[1]['key'], o.turmas) is False:
+                        obj.turma=item['r0'].nodes[1]['key']
+                if (item['r2'].nodes[0]['key'] == obj.turma):
+                    obj.materias.append(item['r2'].nodes[1]['key'])
+
+                if obj.turma != '':
+                    o.turmas.append(obj)
 
         for o in courseObj:
             course: Curso
-            subjects = []
             gangs = []
 
             courseResult = couchConn.get('curso', o.key).value
@@ -330,31 +332,37 @@ def get_gangs_subjects_from_courses(token: str, response: Response, courses: Lis
                 nome_curso=courseResult['nome_curso']
             )
 
-            gangsResult = couchConn.getMulti('turma', o.turmas).results.items()
-            subjectsResult = couchConn.getMulti('materia', o.materias).results.items()
-
-            for row in subjectsResult:
-                row_content = row[1].value
-                subject = MateriaRequest(
-                    ch_materia=row_content['ch_materia'],
-                    descricao_materia=row_content['descricao_materia'],
-                    tipo_ensino=row_content['tipo_ensino'])
-                subjects.append(subject)
-
-            for row in gangsResult:
-                row_content = row[1].value
-                gang = Turma(
-                    descricao_turma=row_content['descricao_turma'],
-                    dt_inicio=row_content['dt_inicio'],
-                    dt_fim=row_content['dt_fim']
+            for i in o.turmas:
+                gangResult = couchConn.get('turma', i.turma).value
+                gang = TurmaResponse(
+                    key=i.turma,
+                    descricao_turma=gangResult['descricao_turma'],
+                    dt_inicio=gangResult['dt_inicio'],
+                    dt_fim=gangResult['dt_fim']
                 )
-                gangs.append(gang)
+
+                subjects = []
+                subjectsResult = couchConn.getMulti('materia', i.materias).results.items()
+                for row in subjectsResult:
+                    row_content = row[1].value
+                    subject = MateriaRequestKey(
+                        key=row[1].key,
+                        ch_materia=row_content['ch_materia'],
+                        descricao_materia=row_content['descricao_materia'],
+                        tipo_ensino=row_content['tipo_ensino'],
+                        dt_inicio=returnKey(row_content, 'dt_inicio'),
+                        dt_fim=returnKey(row_content, 'dt_fim'))
+                    subjects.append(subject)
+
+                gangs.append(TurmaMateriasResponse(
+                    turma=gang,
+                    materias=subjects
+                ))
 
             body.append(
                 CursoResponse(
                     curso=course,
                     turmas=gangs,
-                    materias=subjects
                 )
             )
 
@@ -608,3 +616,16 @@ def returnKey(row: dict, key: str):
         return row[key]
     else:
         return ''
+
+def keyGangAlreadyInserted(key: str, data: List[TurmaMateriasSimple]):
+    for i in data:
+        if key == i.turma:
+            return True
+    return False
+
+def keySubjectAlreadyInserted(key: str, data: List[TurmaMateriasSimple]):
+    for i in data:
+        for j in i.materias:
+            if key == j:
+                return True
+    return False
