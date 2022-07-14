@@ -88,7 +88,7 @@ class Neo4jConnection:
                 else:
                     query = ''.join([query, ''' c.palavra_chave="%s" OR ''' %(item)])
         
-        query = ''.join([query, 'RETURN c, m, t, r0, r1, r2'])
+        query = ''.join([query, 'RETURN c, m, t, r0, r2'])
 
         try:
             session = self.__driver.session(database=db) if db is not None else self.__driver.session()
@@ -194,9 +194,9 @@ class Neo4jConnection:
         session = None
         response = None
         
-        query = '''MATCH (u:Usuario) WHERE u.login_usuario = "%s" MATCH (c:Curso)-[r]->(m:Materia), (m)-[r1]->(t:Turma) WHERE c.palavra_chave = "%s" AND ''' %(login, data['curso'])
+        query = '''MATCH (u:Usuario) WHERE u.login_usuario = "%s" MATCH (t:Turma) WHERE t.key="%s" MATCH (c:Curso)-[r]->(m:Materia) WHERE c.palavra_chave = "%s" AND ''' %(login, data['turma'], data['curso'])
         separator = ''
-        create = ''' MERGE (u)-[:MATRICULADO]->(c) MERGE (u)-[:INSCREVE_MATERIA]->(m)'''
+        create = ''' MERGE (u)-[:MATRICULADO]->(c) MERGE (u)-[:PERTENCE]->(t) MERGE (u)-[:INSCREVE_MATERIA]->(m)'''
 
         if len(data['materias']) == 1:
             query = separator.join([query, '''m.key = "%s"''' %(data['materia'][0])])

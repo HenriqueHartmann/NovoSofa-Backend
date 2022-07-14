@@ -11,6 +11,7 @@ from models.Usuario import Usuario
 
 class VinculoRequest(BaseModel):
     curso: str
+    turma: str
     materias: List[str]
 
     def bind_graduation(self, token: str, conn: Neo4jConnection):
