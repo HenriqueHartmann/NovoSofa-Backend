@@ -1,6 +1,5 @@
 from typing import List, Optional
 import os
-from unittest import result
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Query, Response, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -8,8 +7,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
-from models.Curso import Curso, CursoKey, CursoResponse, CursoTurmaMateria
-from models.Materia import MateriaRequest, MateriaRequestKey, MateriaResponse
+from models.Curso import Curso, CursoResponse, CursoTurmaMateria
+from models.Materia import MateriaRequest, MateriaRequestKey
 from models.RegistroAula import GetRegistroAula, RegistroAula, RegistroAulaRequest, RegistroAulaResponse
 from models.Turma import Turma, TurmaMaterias, TurmaMateriasResponse, TurmaMateriasSimple, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
@@ -508,8 +507,7 @@ def get_user_binds(userType: int, token: str, response: Response):
         for row in coursesResult:
             print(row)
             row_content = row[1].value
-            course = CursoKey(
-                key=row[1].key,
+            course = Curso(
                 ch_curso=row_content['ch_curso'],
                 nome_curso=row_content['nome_curso'])
             courses.append(course)
