@@ -1,7 +1,7 @@
 from typing import List
 from pydantic import BaseModel
 from connection.Neo4jConnection import Neo4jConnection
-from models.Curso import Curso, CursoKey
+from models.Curso import Curso
 from models.Materia import MateriaRequest, MateriaRequestKey
 
 from models.Token import ValidateToken
@@ -37,6 +37,6 @@ class ProfessorVinculoRequest(BaseModel):
         
 class VinculoResponse(BaseModel):
     usuario: Usuario
-    curso: List[CursoKey]
+    curso: List[Curso]
     materias: List[MateriaRequestKey]
     turmas: List[TurmaResponse]
