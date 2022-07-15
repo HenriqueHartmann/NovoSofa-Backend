@@ -9,7 +9,7 @@ from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso, CursoResponse, CursoTurmaMateria
 from models.Materia import MateriaRequest, MateriaRequestKey
-from models.RegistroAula import GetRegistroAula, RegistroAula, RegistroAulaRequest, RegistroAulaResponse
+from models.RegistroAula import GetRegistroAula, RegistroAula, RegistroAulaKey, RegistroAulaRequest, RegistroAulaResponse
 from models.Turma import Turma, TurmaMaterias, TurmaMateriasResponse, TurmaMateriasSimple, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
@@ -588,7 +588,8 @@ def create_class_record(token: str, response: Response, curso: str = "", turma: 
     raResult = record.get_document(token, couchConn, neoConn)
     for item in raResult:
         raResult = couchConn.get('registroAula', item['ra']['key']).value
-        ra = RegistroAula(
+        ra = RegistroAulaKey(
+            key=item['ra']['key'],
             descricao_aula=raResult['descricao_aula'],
             dt_aula=raResult['dt_aula']
         )
@@ -636,6 +637,25 @@ def create_class_record(record: RegistroAulaRequest, token: str, response: Respo
     key = str(uuid.uuid1())
 
     record.create_document(key, token, couchConn, neoConn)
+
+    return []
+
+@app.put('/AtualizarRegistroAula', status_code=204)
+def update_class_record(record: RegistroAulaKey, token: str, response: Response):
+    token_is_valid = ValidateToken(token=token).validate_token(couchConn)
+    if (token_is_valid is False):
+        print('Token is Invalid')
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+
+        return JSONResponse(status_code=401, content=[{"message": "Token is invalid"}])
+
+    body = RegistroAula(
+        descricao_aula=record.descricao_aula,
+        dt_aula=record.dt_aula
+    )
+
+    couchConn.replace('registroAula', record.key, body.dict())
+    print('Registro Aula Atualizado')
 
     return []
 

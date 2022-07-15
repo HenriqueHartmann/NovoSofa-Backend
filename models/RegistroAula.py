@@ -11,6 +11,11 @@ class RegistroAula(BaseModel):
     dt_aula: str
     descricao_aula: str 
 
+class RegistroAulaKey(BaseModel):
+    key: str
+    dt_aula: str
+    descricao_aula: str 
+
 class RegistroAulaRequest(BaseModel):
     dt_aula: str
     descricao_aula: str
