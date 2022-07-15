@@ -15,6 +15,11 @@ class Curso(BaseModel):
         query = '''CREATE (n:Curso {id: "%s", nome_curso: "%s"}) RETURN n''' %(key, self.nome_curso)  
         connN.query(query)
 
+class CursoKey(BaseModel):
+    key: str
+    nome_curso: str
+    ch_curso: int
+
 class CursoResponse(BaseModel):
     curso: Curso
     turmas: List[TurmaMateriasResponse] = []

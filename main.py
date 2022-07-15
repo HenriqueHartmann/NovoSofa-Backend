@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, BaseSettings
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
-from models.Curso import Curso, CursoResponse, CursoTurmaMateria
+from models.Curso import Curso, CursoKey, CursoResponse, CursoTurmaMateria
 from models.Materia import MateriaRequest, MateriaRequestKey, MateriaResponse
 from models.RegistroAula import GetRegistroAula, RegistroAula, RegistroAulaRequest, RegistroAulaResponse
 from models.Turma import Turma, TurmaMaterias, TurmaMateriasResponse, TurmaMateriasSimple, TurmaResponse
@@ -506,15 +506,18 @@ def get_user_binds(userType: int, token: str, response: Response):
         #     nome_curso=courseResult['nome_curso'])
 
         for row in coursesResult:
+            print(row)
             row_content = row[1].value
-            course = Curso(
+            course = CursoKey(
+                key=row[1].key,
                 ch_curso=row_content['ch_curso'],
                 nome_curso=row_content['nome_curso'])
             courses.append(course)
 
         for row in subjectsResult:
             row_content = row[1].value
-            subject = MateriaRequest(
+            subject = MateriaRequestKey(
+                key=row[1].key,
                 ch_materia=row_content['ch_materia'],
                 descricao_materia=row_content['descricao_materia'],
                 tipo_ensino=row_content['tipo_ensino'])
@@ -522,7 +525,8 @@ def get_user_binds(userType: int, token: str, response: Response):
 
         for row in gangsResult:
            row_content = row[1].value
-           gang = Turma(
+           gang = TurmaResponse(
+            key=row[1].key,
             descricao_turma=row_content['descricao_turma'],
             dt_inicio=row_content['dt_inicio'],
             dt_fim=row_content['dt_fim']
