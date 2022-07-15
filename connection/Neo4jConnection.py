@@ -302,7 +302,7 @@ class Neo4jConnection:
             if data['turma'] != "":
                 query = ''.join([query, 'AND ', filterGang])
             if data['materia'] != "":
-                query = ''.join(query, 'AND ', filterSubject)
+                query = ''.join([query, 'AND ', filterSubject])
         elif data['turma'] != "":
             query = ''.join([query, 'AND ', filterGang])
             if data['materia'] != "":
