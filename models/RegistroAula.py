@@ -59,7 +59,7 @@ class GetRegistroAula(BaseModel):
         return connN.getClassRecord(login, self.dict())
 
 class RegistroAulaResponse(BaseModel):
-    registroAula: RegistroAula
+    registroAula: RegistroAulaKey
     curso: Curso
     turma: Turma
     materia: MateriaRequest
