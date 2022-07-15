@@ -514,7 +514,8 @@ def get_user_binds(userType: int, token: str, response: Response):
 
         for row in subjectsResult:
             row_content = row[1].value
-            subject = MateriaRequest(
+            subject = MateriaRequestKey(
+                key=row[1].key,
                 ch_materia=row_content['ch_materia'],
                 descricao_materia=row_content['descricao_materia'],
                 tipo_ensino=row_content['tipo_ensino'])
@@ -522,7 +523,8 @@ def get_user_binds(userType: int, token: str, response: Response):
 
         for row in gangsResult:
            row_content = row[1].value
-           gang = Turma(
+           gang = TurmaResponse(
+            key=row[1].key,
             descricao_turma=row_content['descricao_turma'],
             dt_inicio=row_content['dt_inicio'],
             dt_fim=row_content['dt_fim']
