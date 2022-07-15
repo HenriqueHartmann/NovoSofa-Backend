@@ -313,15 +313,14 @@ class Neo4jConnection:
 
         query = ''.join([query, r])
 
-        print(query)
-        # try:
-        #     session = self.__driver.session(database=db) if db is not None else self.__driver.session()
-        #     response = list(session.run(query, parameters))
-        # except Exception as e:
-        #     print("Query failed: ", e)
-        # finally:
-        #     if session is not None:
-        #         session.close()
+        try:
+            session = self.__driver.session(database=db) if db is not None else self.__driver.session()
+            response = list(session.run(query, parameters))
+        except Exception as e:
+            print("Query failed: ", e)
+        finally:
+            if session is not None:
+                session.close()
         return response
 
     def bindClassRecord(self, key: str, login: str, data: dict, parameters=None, db=None):

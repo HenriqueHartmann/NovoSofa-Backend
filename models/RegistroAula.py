@@ -2,7 +2,10 @@ from pydantic import BaseModel
 
 from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
+from models.Curso import Curso
+from models.Materia import MateriaRequest
 from models.Token import ValidateToken
+from models.Turma import Turma
 
 class RegistroAula(BaseModel):
     dt_aula: str
@@ -48,4 +51,10 @@ class GetRegistroAula(BaseModel):
         )
         login = vToken.decode_token()
 
-        connN.getClassRecord(login, self.dict())
+        return connN.getClassRecord(login, self.dict())
+
+class RegistroAulaResponse(BaseModel):
+    registroAula: RegistroAula
+    curso: Curso
+    turma: Turma
+    materia: MateriaRequest

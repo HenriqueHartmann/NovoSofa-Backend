@@ -10,7 +10,7 @@ from connection.CouchbaseConnection import CouchbaseConnection
 from connection.Neo4jConnection import Neo4jConnection
 from models.Curso import Curso, CursoResponse, CursoTurmaMateria
 from models.Materia import MateriaRequest, MateriaRequestKey, MateriaResponse
-from models.RegistroAula import GetRegistroAula, RegistroAulaRequest
+from models.RegistroAula import GetRegistroAula, RegistroAula, RegistroAulaRequest, RegistroAulaResponse
 from models.Turma import Turma, TurmaMaterias, TurmaMateriasResponse, TurmaMateriasSimple, TurmaResponse
 from models.Usuario import Usuario, UsuarioLogin
 from models.Token import Token, ValidateToken
@@ -566,8 +566,10 @@ def bind_professor(vinculo: ProfessorVinculoRequest, token: str, response: Respo
 
     return []
 
-@app.get('/RegistroAula', status_code=201)
+@app.get('/RegistroAula', response_model=List[RegistroAulaResponse], status_code=200)
 def create_class_record(token: str, response: Response, curso: str = "", turma: str= "", materia: str = ""):
+    body = []
+
     token_is_valid = ValidateToken(token=token).validate_token(couchConn)
     if (token_is_valid is False):
         print('Token is Invalid')
@@ -581,9 +583,44 @@ def create_class_record(token: str, response: Response, curso: str = "", turma: 
         materia=materia
     )
 
-    record.get_document(token, couchConn, neoConn)
+    raResult = record.get_document(token, couchConn, neoConn)
+    for item in raResult:
+        raResult = couchConn.get('registroAula', item['ra']['key']).value
+        ra = RegistroAula(
+            descricao_aula=raResult['descricao_aula'],
+            dt_aula=raResult['dt_aula']
+        )
 
-    return []
+        courseResult = couchConn.get('curso', item['c']['key']).value
+        c = Curso(
+            nome_curso=courseResult['nome_curso'],
+            ch_curso=courseResult['ch_curso']
+        )
+
+        gangResult = couchConn.get('turma', item['t']['key']).value
+        g = Turma(
+            descricao_turma=gangResult['descricao_turma'],
+            dt_inicio=gangResult['dt_inicio'],
+            dt_fim=gangResult['dt_fim']
+        )
+
+        subjectResult = couchConn.get('materia', item['m']['key']).value
+        s = MateriaRequest(
+            ch_materia=subjectResult['ch_materia'],
+            descricao_materia=subjectResult['descricao_materia'],
+            dt_inicio=returnKey(subjectResult, 'dt_inicio'),
+            dt_fim=returnKey(subjectResult, 'dt_fim')
+        )
+        
+        raObj = RegistroAulaResponse(
+            registroAula=ra,
+            curso=c,
+            turma=g,
+            materia=s
+        )
+        body.append(raObj)
+
+    return body
 
 @app.post('/CriarRegistroAula', status_code=201)
 def create_class_record(record: RegistroAulaRequest, token: str, response: Response):
